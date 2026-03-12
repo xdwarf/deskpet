@@ -77,8 +77,8 @@ def main():
     # -------------------------------------------------------------------------
     mqtt = MqttBridge(config["mqtt"], log)
     wake = WakeWordDetector(config["wake_word"], config["audio"], log)
-    stt  = SpeechToText(config["stt"], config["audio"], log)
-    ai   = AiClient(config["ai"], log)
+    stt  = SpeechToText(config["server"], config["audio"], log)
+    ai   = AiClient(config["server"], log)
     tts  = TextToSpeech(config["tts"], config["chromecast"], log)
 
     mqtt.connect()

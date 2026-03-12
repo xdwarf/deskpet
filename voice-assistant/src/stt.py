@@ -1,53 +1,48 @@
 """
 DeskPet Voice Assistant — stt.py
 ==================================
-Speech-to-text using OpenAI Whisper running locally on the Raspberry Pi.
+Records audio on the Pi and sends it to the neo-brain server for transcription.
 
-WHY WHISPER?
-- Runs fully offline — no API key needed, no cloud latency
-- Good Danish (da) support in the "base" and "small" models
-- The "base" model fits in ~150 MB RAM and runs in ~5s on Pi 3B+
+WHY SERVER-SIDE STT:
+Vosk runs on the Docker host (192.168.2.14:8000) where CPU/RAM aren't
+constrained. The Pi only captures audio and POSTs the WAV over the LAN,
+which is far faster than running Whisper locally (~5s on Pi 3B+).
 
 RECORDING STRATEGY:
-We record a fixed number of seconds after the wake word, then transcribe.
-A more sophisticated approach (VAD — voice activity detection) would stop
-recording when the user stops speaking. This is left as a future improvement.
+Fixed-duration recording after the wake word. VAD (stop on silence) is a
+future improvement.
 """
 
-import logging
 import io
-import numpy as np
+import wave
+import logging
+
 import pyaudio
-import whisper
+import requests
 
 
 class SpeechToText:
     """
-    Records audio from the microphone after the wake word fires,
-    then transcribes it using Whisper.
+    Records audio from the Pi microphone, wraps it in a WAV container,
+    and sends it to the neo-brain server's /transcribe endpoint.
     """
 
-    def __init__(self, stt_config: dict, audio_config: dict, log: logging.Logger):
-        self._log = log.getChild("stt")
-        self._language     = stt_config.get("language", "da")
-        self._model_name   = stt_config.get("model", "base")
+    def __init__(self, server_config: dict, audio_config: dict, log: logging.Logger):
+        self._log          = log.getChild("stt")
+        self._server_url   = server_config["url"].rstrip("/")
+        self._timeout      = int(server_config.get("timeout", 30))
         self._device_index = int(audio_config.get("mic_device_index", 0))
         self._sample_rate  = int(audio_config.get("sample_rate", 16000))
         self._chunk_size   = int(audio_config.get("chunk_size", 512))
         self._record_secs  = int(audio_config.get("record_seconds", 8))
+        self._pa           = pyaudio.PyAudio()
+        self._log.info(f"STT initialised (server: {self._server_url})")
 
-        self._log.info(f"Loading Whisper model '{self._model_name}' — this may take a moment...")
-        # Load model once at startup (not per utterance)
-        self._model = whisper.load_model(self._model_name)
-        self._log.info("Whisper model loaded")
-
-        self._pa = pyaudio.PyAudio()
-
-    def record_audio(self) -> np.ndarray:
+    def record_audio(self) -> bytes:
         """
-        Open the microphone, record for self._record_secs seconds, and
-        return the raw audio as a float32 numpy array in the range [-1.0, 1.0].
-        Whisper expects float32 at 16 kHz.
+        Open the microphone, record for self._record_secs seconds, and return
+        the audio wrapped in a WAV container (16 kHz, mono, 16-bit PCM).
+        WAV format is required by the server's Vosk endpoint.
         """
         self._log.info(f"Recording for up to {self._record_secs}s...")
         stream = self._pa.open(
@@ -56,12 +51,11 @@ class SpeechToText:
             rate=self._sample_rate,
             input=True,
             input_device_index=self._device_index,
-            frames_per_buffer=self._chunk_size
+            frames_per_buffer=self._chunk_size,
         )
 
         frames = []
         num_chunks = int(self._sample_rate / self._chunk_size * self._record_secs)
-
         for _ in range(num_chunks):
             raw = stream.read(self._chunk_size, exception_on_overflow=False)
             frames.append(raw)
@@ -70,21 +64,33 @@ class SpeechToText:
         stream.close()
         self._log.info("Recording complete")
 
-        # Convert to float32 in range [-1, 1] — the format Whisper expects
-        raw_bytes = b"".join(frames)
-        audio_int16 = np.frombuffer(raw_bytes, dtype=np.int16)
-        audio_float32 = audio_int16.astype(np.float32) / 32768.0
-        return audio_float32
+        # Wrap the raw PCM bytes in a WAV container so the server's
+        # wave.open() can parse sample rate and channel count correctly
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)          # 16-bit PCM = 2 bytes per sample
+            wf.setframerate(self._sample_rate)
+            wf.writeframes(b"".join(frames))
+        return buf.getvalue()
 
-    def transcribe(self, audio: np.ndarray) -> str:
+    def transcribe(self, wav_bytes: bytes) -> str:
         """
-        Run Whisper transcription on the recorded audio.
-        Returns the transcribed text string.
-        Specifying language="da" skips language detection and is faster.
+        POST the WAV bytes to the neo-brain server's /transcribe endpoint
+        and return the Danish transcript string.
+        Returns empty string on failure so the main loop can handle it gracefully.
         """
-        self._log.info("Transcribing...")
-        result = self._model.transcribe(audio, language=self._language, fp16=False)
-        # fp16=False because Pi 3B+ doesn't have FP16 acceleration
-        text = result.get("text", "").strip()
-        self._log.info(f"Transcription: {text!r}")
-        return text
+        self._log.info("Sending audio to server for transcription...")
+        try:
+            resp = requests.post(
+                f"{self._server_url}/transcribe",
+                files={"audio": ("recording.wav", wav_bytes, "audio/wav")},
+                timeout=self._timeout,
+            )
+            resp.raise_for_status()
+            text = resp.json().get("text", "").strip()
+            self._log.info(f"Transcript: {text!r}")
+            return text
+        except requests.RequestException as e:
+            self._log.error(f"STT server unreachable: {e}")
+            return ""

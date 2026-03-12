@@ -12,16 +12,11 @@ mqtt:
   username: ""   # Leave empty if your broker has no auth
   password: ""
 
-ai:
-  # Google Gemini API key — get one at https://aistudio.google.com/app/apikey (free tier available)
-  gemini_api_key: "AIza..."
-  model: "gemini-1.5-flash"  # Fast and free-tier friendly
-  # System prompt that sets Neo's personality
-  system_prompt: |
-    Du er Neo, en venlig og hjælpsom desktop-assistent.
-    Du taler altid dansk og giver korte, klare svar.
-    Du har adgang til smart home-data og kan hjælpe med dagligdags spørgsmål.
-    Hold svar under 3 sætninger medmindre der specifikt bedt om mere.
+server:
+  # neo-brain server running on the Docker host — handles STT (Vosk) and AI (Gemini)
+  # Start it with: cd vosk-server && docker compose up -d
+  url: "http://192.168.2.14:8000"
+  timeout: 30   # seconds — covers both transcription and AI response time
 
 chromecast:
   # Google Nest speaker IP address (find it in your router's DHCP table or Google Home app)
@@ -45,18 +40,12 @@ wake_word:
 audio:
   # USB microphone device index. Run `python -c "import pyaudio; p=pyaudio.PyAudio(); [print(i, p.get_device_info_by_index(i)['name']) for i in range(p.get_device_count())]"` to list devices.
   mic_device_index: 0
-  sample_rate: 16000      # 16 kHz is what Whisper expects
+  sample_rate: 16000      # 16 kHz — Vosk expects this on the server
   chunk_size: 512
   record_seconds: 8       # Max recording time after wake word
 
-stt:
-  # Whisper model size — tradeoff between speed and accuracy
-  # On Pi 3B+: "base" runs in ~5s, "small" in ~15s per utterance
-  model: "base"
-  language: "da"          # Danish
-
 tts:
-  # gTTS language code for Danish
+  # gTTS language code for Danish — TTS runs on the Pi
   language: "da"
   # Temporary file for TTS audio output before casting
   output_file: "/tmp/neo_response.mp3"

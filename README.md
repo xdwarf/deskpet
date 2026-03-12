@@ -41,14 +41,13 @@ The character's name is **Neo**.
 | GC9A01 | 240×240 round SPI display | Already owned |
 | Raspberry Pi 3B+ | Voice assistant brain | Runs Python wake word + AI pipeline |
 | USB Webcam | Microphone input | Used only for mic, not camera |
-| Google Nest Speaker | Audio output | AirCast on home server pushes audio to it |
+| Google Nest Speaker | Audio output | pychromecast on the Pi casts audio directly |
 | 3D Printer | Physical enclosure | Design TBD in Stage 4 |
 
 **Home Server (already running on 192.168.2.14):**
 - Docker on Ubuntu on Proxmox
 - Mosquitto MQTT broker — port 1883
 - Homey Self-Hosted smart home hub
-- AirCast for casting audio to Google Nest speakers
 
 ---
 
@@ -74,22 +73,22 @@ The character's name is **Neo**.
 │                                │  └──────────────────┘  │      │
 │                                └────────────────────────┘      │
 │                                                                 │
-│  ┌──────────────────────────────────────────┐                  │
-│  │           Raspberry Pi 3B+               │                  │
-│  │  ┌────────────┐   ┌────────────────────┐ │                  │
-│  │  │ USB Webcam │   │  Voice Pipeline    │ │                  │
-│  │  │ (mic only) │──▶│  Wake word detect  │ │                  │
-│  │  └────────────┘   │  STT (Danish)      │ │──▶ MQTT (status) │
-│  │                   │  Claude AI         │ │                  │
-│  │                   │  TTS (Danish)      │ │                  │
-│  │                   └────────────────────┘ │                  │
-│  └─────────────────────────┬────────────────┘                  │
-│                            │ HTTP / AirCast                     │
-│                            ▼                                    │
-│                  ┌─────────────────┐                            │
-│                  │  Google Nest    │                            │
-│                  │    Speaker      │                            │
-│                  └─────────────────┘                            │
+│  ┌──────────────────────┐   HTTP    ┌──────────────────────┐   │
+│  │   Raspberry Pi 3B+   │──────────▶│  neo-brain (Docker)  │   │
+│  │                      │  POST WAV │  192.168.2.14:8000   │   │
+│  │  Wake word detect    │◀──────────│                      │   │
+│  │  Audio capture       │  text     │  POST /transcribe    │   │
+│  │  gTTS (Danish)       │──────────▶│    Vosk STT (Danish) │   │
+│  │  pychromecast cast   │  POST txt │                      │   │
+│  │  MQTT status         │◀──────────│  POST /ask           │   │
+│  └──────────┬───────────┘  response │    Gemini AI         │   │
+│             │                       └──────────────────────┘   │
+│             │ pychromecast (direct)                             │
+│             ▼                                                   │
+│   ┌─────────────────┐                                           │
+│   │  Google Nest    │                                           │
+│   │ 192.168.2.172   │                                           │
+│   └─────────────────┘                                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -101,31 +100,40 @@ The character's name is **Neo**.
 *Goal: Neo's face is alive on the desk, reacting to smart home events.*
 
 - [x] Project repository and structure set up
-- [ ] PlatformIO firmware compiles and flashes to ESP32-C3
-- [ ] GC9A01 display initialises and renders graphics
-- [ ] Idle animations: blinking, breathing effect
-- [ ] Expression system: happy, sad, surprised, sleepy, excited, thinking
-- [ ] WiFi connection with reconnect logic
-- [ ] MQTT client connects to broker at 192.168.2.14:1883
-- [ ] Expression changes on MQTT message
+- [x] PlatformIO firmware compiles and flashes to ESP32-C3
+- [x] GC9A01 display initialises and renders graphics (LovyanGFX, 40 MHz, invert=true)
+- [x] Idle animations: blinking, breathing effect
+- [x] Expression system: neutral, happy, sad, surprised, sleepy, excited, thinking
+- [x] EXCITED expression visually distinct from HAPPY (wide eyes, bigger grin, sparkles)
+- [x] WiFi connection with reconnect logic
+- [x] MQTT client connects to broker at 192.168.2.14:1883
+- [x] Expression changes on MQTT message (`deskpet/expression`)
 - [ ] Trigger: someone arrives home → happy bouncy expression
 - [ ] Trigger: everyone in bed → sleepy expression
 - [ ] Trigger: door/window opens → surprised expression
 - [ ] Trigger: good morning → yawning/waking-up animation
 - [ ] Trigger: rain forecast → sad expression
 
-### Stage 2 — Voice Assistant (Raspberry Pi 3B+)
+### Stage 2 — Voice Assistant (Pi + Docker server)
 *Goal: Say "Hey Neo", ask something in Danish, hear an answer on the Nest speaker.*
 
-- [ ] Python environment and dependencies set up on Pi
-- [ ] Wake word detection ("Hey Neo" or similar)
-- [ ] Microphone input via USB webcam
-- [ ] Speech-to-text in Danish
-- [ ] Query AI (Claude API)
-- [ ] Text-to-speech response in Danish
-- [ ] Push audio to Google Nest via AirCast on home server
-- [ ] ESP32 reacts: thinking face while processing, happy when responding
-- [ ] MQTT handshake between Pi and ESP32 for state sync
+**Pi (voice-assistant/):**
+- [x] Python project structure and all modules written
+- [x] Wake word detection (openwakeword, placeholder: hey_jarvis)
+- [x] Microphone input via USB webcam (pyaudio)
+- [x] Records audio as WAV, POSTs to neo-brain server for STT
+- [x] POSTs transcript to neo-brain server for AI response
+- [x] Text-to-speech response in Danish (gTTS)
+- [x] Cast audio directly to Google Nest via pychromecast (192.168.2.172)
+- [x] ESP32 reacts: thinking face while processing, happy when responding
+- [x] MQTT handshake between Pi and ESP32 for state sync
+
+**Docker server (vosk-server/):**
+- [x] FastAPI server with `/transcribe` (Vosk) and `/ask` (Gemini) endpoints
+- [x] Dockerfile + docker-compose.yaml ready
+- [ ] Deploy to Docker host and download Danish Vosk model
+- [ ] End-to-end test of full pipeline on physical hardware
+- [ ] Train or source custom "Hey Neo" wake word model
 
 ### Stage 3 — Smart Home Deep Integration
 *Goal: Neo is a true smart home dashboard personality.*
@@ -278,7 +286,29 @@ pio run --target upload
 pio device monitor --baud 115200
 ```
 
-### Stage 2: Set up the Voice Assistant
+### Stage 2a: Start the neo-brain server (Docker host)
+
+```bash
+cd vosk-server
+
+# Download the Danish Vosk model (~48 MB, one-time setup)
+mkdir -p models
+wget -P models https://alphacephei.com/vosk/models/vosk-model-small-da-0.22.zip
+unzip models/vosk-model-small-da-0.22.zip -d models/
+rm models/vosk-model-small-da-0.22.zip
+
+# Add your Gemini API key
+cp .env.example .env
+# Edit .env with your key
+
+# Start the server
+docker compose up -d
+
+# Verify it's running
+curl http://192.168.2.14:8000/health
+```
+
+### Stage 2b: Set up the Voice Assistant (Raspberry Pi)
 
 ```bash
 cd voice-assistant
@@ -287,12 +317,12 @@ cd voice-assistant
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# Install dependencies (no Whisper or Gemini SDK — server handles those)
 pip install -r requirements.txt
 
 # Copy and edit config
 cp config/config.example.yaml config/config.yaml
-# Edit config.yaml with your API keys, MQTT broker, and AirCast settings
+# Edit config.yaml: set serve_host to the Pi's LAN IP (run hostname -I)
 
 # Run
 python src/main.py
@@ -323,13 +353,20 @@ deskpet/
 │   │   ├── main.py             # Entry point
 │   │   ├── wake_word.py        # Wake word detection
 │   │   ├── stt.py              # Speech-to-text (Danish)
-│   │   ├── ai_client.py        # Claude API integration
+│   │   ├── ai_client.py        # Gemini API integration
 │   │   ├── tts.py              # Text-to-speech (Danish)
 │   │   └── mqtt_bridge.py      # MQTT publish/subscribe
 │   ├── config/
 │   │   ├── config.yaml         # Live config (gitignored)
 │   │   └── config.example.yaml # Template — copy to config.yaml
 │   └── requirements.txt        # Python dependencies
+│
+├── vosk-server/                # Docker server — Vosk STT + Gemini AI backend
+│   ├── main.py                 # FastAPI app (/transcribe + /ask endpoints)
+│   ├── Dockerfile              # Python 3.11-slim image
+│   ├── docker-compose.yaml     # Service definition + model volume mount
+│   ├── requirements.txt        # Server Python dependencies
+│   └── .env.example            # Template — copy to .env with Gemini API key
 │
 ├── homey/                      # Homey MQTT flow docs and examples
 │   └── flows.md                # Flow documentation
@@ -349,7 +386,11 @@ deskpet/
 This is a personal DIY project. Notes on key decisions:
 
 - **ESP32-C3 over ESP32-S3:** The C3 Mini is smaller and cheaper. It lacks the dual-core of the S3 but for display driving + MQTT it is more than sufficient for Stage 1.
-- **GC9A01 driver:** We use the `LovyanGFX` library. TFT_eSPI was the original choice but its Arduino SPIClass wrapper causes a TG1WDT watchdog crash during SPI initialisation on ESP32-C3. LovyanGFX initialises SPI2 via the ESP-IDF `spi_master` driver directly, which works correctly. The drawing API is near-identical so the expressions code was unchanged.
+- **GC9A01 driver:** We use `LovyanGFX`. TFT_eSPI was the original choice but its Arduino SPIClass wrapper causes a TG1WDT watchdog crash during SPI initialisation on ESP32-C3. LovyanGFX initialises SPI2 via the ESP-IDF `spi_master` driver directly, which works correctly.
+- **Split voice pipeline:** The Pi handles only audio I/O, wake word, TTS, and casting. The Docker server (`vosk-server/`) handles Vosk STT and Gemini AI. This keeps the Pi lightweight and API keys off the device.
+- **STT:** Vosk with the `vosk-model-small-da-0.22` Danish model running in Docker. The Pi records 16 kHz mono WAV and POSTs it to `POST /transcribe` on the server.
+- **AI backend:** Google Gemini 1.5 Flash called from the Docker server's `POST /ask` endpoint. Pi only sees the response text — no Gemini API key needed on the Pi.
+- **Audio casting:** pychromecast connects directly to the Nest speaker at `192.168.2.172:8009`. The Pi serves the generated MP3 over a local HTTP server so the Nest can fetch it by URL — no AirCast needed.
 - **No OTA in Stage 1:** Over-the-air updates will be added once the base firmware is stable.
 - **Danish language:** All voice pipeline components are chosen and configured for Danish (`da-DK`).
 - **Security:** WiFi credentials and API keys are never committed — always use `config.h` / `config.yaml` which are gitignored.

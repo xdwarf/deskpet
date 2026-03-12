@@ -1,0 +1,18 @@
+# neo-brain server dependencies
+# Install happens automatically inside the Docker image — see Dockerfile
+
+# FastAPI web framework + ASGI server
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+
+# Required by FastAPI for multipart file uploads (the /transcribe endpoint)
+python-multipart>=0.0.9
+
+# Vosk — offline speech recognition (Danish model loaded from /models volume)
+vosk>=0.3.45
+
+# Google Gemini API
+google-generativeai>=0.7.0
+
+# Pydantic v2 — FastAPI's request/response model layer
+pydantic>=2.0.0
