@@ -1,0 +1,62 @@
+# =============================================================================
+# DeskPet Voice Assistant — Configuration Template
+# =============================================================================
+# Copy this file to config.yaml and fill in your own values.
+# config.yaml is gitignored — never commit API keys.
+# =============================================================================
+
+mqtt:
+  broker: "192.168.2.14"
+  port: 1883
+  client_id: "deskpet-voice"
+  username: ""   # Leave empty if your broker has no auth
+  password: ""
+
+ai:
+  # Anthropic Claude API key — get one at https://console.anthropic.com
+  anthropic_api_key: "sk-ant-..."
+  model: "claude-haiku-4-5-20251001"  # Fast and cheap for conversational use
+  # System prompt that sets Neo's personality
+  system_prompt: |
+    Du er Neo, en venlig og hjælpsom desktop-assistent.
+    Du taler altid dansk og giver korte, klare svar.
+    Du har adgang til smart home-data og kan hjælpe med dagligdags spørgsmål.
+    Hold svar under 3 sætninger medmindre der specifikt bedt om mere.
+
+aircast:
+  # Your home server IP running AirCast
+  server: "192.168.2.14"
+  # AirCast HTTP API port (default is usually 5000 — check your setup)
+  port: 5000
+  # The name of your Google Nest speaker as it appears in AirCast
+  speaker_name: "Stuen"   # Change to match your speaker name
+
+wake_word:
+  # Wake word model to use with openwakeword
+  # Options: "hey_neo" (custom, see docs/hardware-notes.md), or a built-in
+  # Built-in options include: "hey_jarvis", "hey_mycroft" etc.
+  # For "Hey Neo" you will need to train a custom model — see docs.
+  model: "hey_jarvis"     # Placeholder until custom model is trained
+  threshold: 0.5          # Confidence threshold (0.0-1.0). Lower = more sensitive.
+
+audio:
+  # USB microphone device index. Run `python -c "import pyaudio; p=pyaudio.PyAudio(); [print(i, p.get_device_info_by_index(i)['name']) for i in range(p.get_device_count())]"` to list devices.
+  mic_device_index: 0
+  sample_rate: 16000      # 16 kHz is what Whisper expects
+  chunk_size: 512
+  record_seconds: 8       # Max recording time after wake word
+
+stt:
+  # Whisper model size — tradeoff between speed and accuracy
+  # On Pi 3B+: "base" runs in ~5s, "small" in ~15s per utterance
+  model: "base"
+  language: "da"          # Danish
+
+tts:
+  # gTTS language code for Danish
+  language: "da"
+  # Temporary file for TTS audio output before casting
+  output_file: "/tmp/neo_response.mp3"
+
+logging:
+  level: "INFO"           # DEBUG, INFO, WARNING, ERROR

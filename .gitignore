@@ -205,3 +205,23 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =============================================================================
+# DeskPet project-specific ignores
+# =============================================================================
+
+# Credentials — NEVER commit these
+firmware/include/config.h
+voice-assistant/config/config.yaml
+
+# PlatformIO build output
+firmware/.pio/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 3D model working files (keep only final exports)
+*.blend1
+*.f3d
