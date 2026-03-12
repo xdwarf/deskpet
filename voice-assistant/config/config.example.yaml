@@ -13,9 +13,9 @@ mqtt:
   password: ""
 
 ai:
-  # Anthropic Claude API key — get one at https://console.anthropic.com
-  anthropic_api_key: "sk-ant-..."
-  model: "claude-haiku-4-5-20251001"  # Fast and cheap for conversational use
+  # Google Gemini API key — get one at https://aistudio.google.com/app/apikey (free tier available)
+  gemini_api_key: "AIza..."
+  model: "gemini-1.5-flash"  # Fast and free-tier friendly
   # System prompt that sets Neo's personality
   system_prompt: |
     Du er Neo, en venlig og hjælpsom desktop-assistent.
@@ -23,13 +23,16 @@ ai:
     Du har adgang til smart home-data og kan hjælpe med dagligdags spørgsmål.
     Hold svar under 3 sætninger medmindre der specifikt bedt om mere.
 
-aircast:
-  # Your home server IP running AirCast
-  server: "192.168.2.14"
-  # AirCast HTTP API port (default is usually 5000 — check your setup)
-  port: 5000
-  # The name of your Google Nest speaker as it appears in AirCast
-  speaker_name: "Stuen"   # Change to match your speaker name
+chromecast:
+  # Google Nest speaker IP address (find it in your router's DHCP table or Google Home app)
+  host: "192.168.2.172"
+  # Chromecast control port — 8009 is the default for all Nest/Chromecast devices
+  port: 8009
+  # The Pi's own LAN IP — the Nest fetches the audio file from here
+  # Run `hostname -I` on the Pi to find this
+  serve_host: "192.168.2.X"   # Replace with your Pi's IP
+  # Port for the Pi's built-in audio file server (any free port above 1024)
+  serve_port: 8765
 
 wake_word:
   # Wake word model to use with openwakeword

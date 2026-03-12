@@ -10,16 +10,16 @@ Pipeline overview:
      a. Tell ESP32 → "thinking" face (via MQTT)
      b. Record microphone until silence or max duration
      c. Run speech-to-text (Whisper, Danish)
-     d. Send transcribed text to Claude AI
+     d. Send transcribed text to Gemini AI
      e. Run text-to-speech on the response (gTTS, Danish)
-     f. Push audio file to AirCast → plays on Google Nest
+     f. Cast audio directly to Google Nest via pychromecast
      g. Tell ESP32 → "happy" face
   4. Return to wake word listening
 
 This file wires the modules together. The actual logic lives in:
   wake_word.py  — wake word detection
   stt.py        — speech to text
-  ai_client.py  — Claude API
+  ai_client.py  — Gemini API
   tts.py        — text to speech
   mqtt_bridge.py — MQTT publish/subscribe
 
@@ -79,7 +79,7 @@ def main():
     wake = WakeWordDetector(config["wake_word"], config["audio"], log)
     stt  = SpeechToText(config["stt"], config["audio"], log)
     ai   = AiClient(config["ai"], log)
-    tts  = TextToSpeech(config["tts"], config["aircast"], log)
+    tts  = TextToSpeech(config["tts"], config["chromecast"], log)
 
     mqtt.connect()
     mqtt.publish_expression("neutral")
