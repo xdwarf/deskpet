@@ -1,8 +1,8 @@
 # DeskPet
 
-> Neo — an animated desk companion that reacts to your smart home.
+> Kobo Mochi — an animated desk companion that reacts to your smart home.
 
-Neo sits on your desk and reacts to real-world events via MQTT: happy when you arrive home, sleepy when everyone's in bed, surprised when a door opens. He lives on a round 240×240 display and runs entirely on an ESP32-C3 SuperMini.
+Kobo sits on your desk and reacts to real-world events via MQTT: happy when you arrive home, sleepy when everyone's in bed, surprised when a door opens. He lives on a round 240×240 display and runs entirely on an ESP32-C3 SuperMini.
 
 ---
 
@@ -72,7 +72,7 @@ All topics use the prefix `deskpet/`. Broker: `192.168.2.14:1883`.
 
 | Topic | Payload | Description |
 |---|---|---|
-| `deskpet/expression` | `happy` / `sad` / `surprised` / `sleepy` / `excited` / `thinking` / `neutral` | Set Neo's expression |
+| `deskpet/expression` | `happy` / `sad` / `surprised` / `sleepy` / `excited` / `thinking` / `neutral` | Set Kobo's expression |
 | `deskpet/animation` | `bounce` / `blink` / `yawn` / `breathe` | Trigger a one-shot animation |
 | `deskpet/command` | `restart` / `sleep` / `wake` | System commands |
 | `deskpet/printer_progress` | `0`–`100` | Print progress ring — `100` triggers excited |
@@ -119,7 +119,7 @@ All topics use the prefix `deskpet/`. Broker: `192.168.2.14:1883`.
 
 ### Stage 2 — Progress Ring & Data Dials
 
-Neo's round display is perfect for circular data visualisations drawn around the outside of his face.
+Kobo's round display is perfect for circular data visualisations drawn around the outside of his face.
 
 - [ ] **Print progress ring** — arc grows clockwise 0→100% on `deskpet/printer_progress`; triggers excited at 100%
 - [ ] **Temperature dial** — colour-coded arc showing current room/outdoor temperature
@@ -135,7 +135,7 @@ Neo's round display is perfect for circular data visualisations drawn around the
 
 ### Stage 3.5 — 3D Printer Integration
 
-Neo watches over your prints and celebrates when they finish.
+Kobo watches over your prints and celebrates when they finish.
 
 - [ ] Subscribe to `deskpet/printer_progress` (`0`–`100`)
 - [ ] Draw cyan progress ring arc around face in real time
@@ -153,4 +153,4 @@ Neo watches over your prints and celebrates when they finish.
 
 ---
 
-*Neo is watching. Neo is waiting. Neo will tell you when it's going to rain.*
+*Kobo is watching. Kobo is waiting. Kobo will tell you when it's going to rain.*

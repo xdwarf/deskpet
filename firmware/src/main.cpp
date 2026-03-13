@@ -28,7 +28,7 @@ void setup() {
     delay(500); // Give USB serial time to enumerate on ESP32-C3
     Serial.println("\n=== DeskPet booting ===");
 
-    // Initialise the GC9A01 display first so Neo's face appears quickly,
+    // Initialise the GC9A01 display first so Kobo's face appears quickly,
     // even before WiFi connects. This gives visual feedback that the device
     // is alive.
     displayInit();

@@ -1,11 +1,11 @@
 // =============================================================================
 // DeskPet — expressions.cpp
 // =============================================================================
-// Draws Neo's animated face onto the sprite, then flushes to the display.
+// Draws Kobo's animated face onto the sprite, then flushes to the display.
 //
 // HOW THE FACE WORKS
 // ==================
-// Neo's face is drawn programmatically using simple geometric primitives:
+// Kobo's face is drawn programmatically using simple geometric primitives:
 //   - Eyes: filled circles (open), thin ellipses (squinting), arcs (happy)
 //   - Mouth: arc or line, width/curvature changes per expression
 //   - Cheeks: small pink circles for happy/excited
