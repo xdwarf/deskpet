@@ -17,6 +17,7 @@
 #include "expressions.h"
 #include "wifi_manager.h"
 #include "mqtt_client.h"
+#include "sprite_manager.h"
 
 // ---------------------------------------------------------------------------
 // setup() — runs once at boot
@@ -28,7 +29,7 @@ void setup() {
     delay(500); // Give USB serial time to enumerate on ESP32-C3
     Serial.println("\n=== DeskPet booting ===");
 
-    // Initialise the GC9A01 display first so Kobo's face appears quickly,
+    // Initialise the GC9A01 display first so Muni's face appears quickly,
     // even before WiFi connects. This gives visual feedback that the device
     // is alive.
     displayInit();
@@ -43,6 +44,14 @@ void setup() {
 
     // Connect to MQTT broker and subscribe to our topics
     mqttSetup();
+
+    // Check sprite server for updates and download new sprite sheets if
+    // a newer manifest version is available. Falls back gracefully if the
+    // server is unreachable — programmatic face drawing always works.
+    spriteManagerInit();
+    Serial.printf("[Sprites] Cached version: %s | Has sprites: %s\n",
+                  spriteManagerCachedVersion(),
+                  spriteManagerHasSprites() ? "yes" : "no (using programmatic face)");
 
     Serial.println("=== DeskPet ready ===");
 

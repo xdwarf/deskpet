@@ -3,11 +3,11 @@
 // =============================================================================
 // DeskPet — expressions.h
 // =============================================================================
-// Public interface for Kobo's face expressions and animations.
+// Public interface for Muni's face expressions and animations.
 //
 // Design overview:
 //   - An "expression" is a persistent mood/state (happy, sad, etc.) that
-//     Kobo holds until told to change. It has idle animations (breathing,
+//     Muni holds until told to change. It has idle animations (breathing,
 //     blinking) that play continuously within it.
 //   - An "animation" is a one-shot event (yawn, bounce) that plays once
 //     and then returns to the current expression.

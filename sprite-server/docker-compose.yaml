@@ -1,0 +1,25 @@
+services:
+  sprite-server:
+    image: nginx:alpine
+    container_name: deskpet-sprite-server
+    restart: unless-stopped
+
+    volumes:
+      # Nginx site config — routes sprites.mael.dk and sets cache headers
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Sprite sheets and manifest — served as static files
+      - ./sprites:/usr/share/nginx/html:ro
+
+    # No port mapping needed — Nginx Proxy Manager routes external traffic
+    # to this container via the proxy network.
+    # To test locally: add `ports: ["8081:80"]` temporarily.
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    # This is the external network shared with Nginx Proxy Manager.
+    # Create it once on the Docker host:
+    #   docker network create proxy
+    external: true

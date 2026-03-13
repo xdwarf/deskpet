@@ -14,6 +14,17 @@ firmware/.pio/
 .vscode/launch.json
 .vscode/ipch
 
+# Sprite binary files — not tracked in git (downloaded at runtime or generated locally)
+# manifest.json IS tracked (it defines the version and expression list)
+sprite-server/sprites/**/*.bin
+sprite-server/sprites/**/*.raw
+sprite-server/sprites/**/*.sprite
+
+# Simulator virtualenv
+simulator/venv/
+simulator/__pycache__/
+simulator/*.pyc
+
 # OS noise
 .DS_Store
 Thumbs.db

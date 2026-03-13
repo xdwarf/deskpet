@@ -66,3 +66,21 @@
 // How long (ms) a triggered expression lasts before returning to idle
 // Set to 0 for "hold until next MQTT message"
 #define EXPRESSION_HOLD_MS 8000
+
+// -----------------------------------------------------------------------------
+// Sprite server
+// -----------------------------------------------------------------------------
+// URL of the manifest file on the sprite server.
+// The ESP32 checks this on every boot and downloads updated sprite sheets
+// to LittleFS if the manifest version has changed.
+#define SPRITE_SERVER_MANIFEST_URL "http://sprites.mael.dk/manifest.json"
+
+// Base URL for sprite sheet downloads (no trailing slash)
+#define SPRITE_SERVER_BASE_URL     "http://sprites.mael.dk"
+
+// Active character — determines which subfolder to download from
+#define SPRITE_CHARACTER           "muni"
+
+// NVS namespace and key used to persist the cached manifest version
+#define NVS_NAMESPACE              "deskpet"
+#define NVS_KEY_SPRITE_VERSION     "sprite_ver"

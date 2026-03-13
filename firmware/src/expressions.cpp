@@ -1,11 +1,11 @@
 // =============================================================================
 // DeskPet — expressions.cpp
 // =============================================================================
-// Draws Kobo's animated face onto the sprite, then flushes to the display.
+// Draws Muni's animated face onto the sprite, then flushes to the display.
 //
 // HOW THE FACE WORKS
 // ==================
-// Kobo's face is drawn programmatically using simple geometric primitives:
+// Muni's face is drawn programmatically using simple geometric primitives:
 //   - Eyes: filled circles (open), thin ellipses (squinting), arcs (happy)
 //   - Mouth: arc or line, width/curvature changes per expression
 //   - Cheeks: small pink circles for happy/excited
