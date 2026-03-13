@@ -129,7 +129,7 @@ The character's name is **Neo**.
 - [x] MQTT handshake between Pi and ESP32 for state sync
 
 **Docker server (vosk-server/):**
-- [x] FastAPI server with `/transcribe` (Vosk) and `/ask` (Gemini) endpoints
+- [x] FastAPI server with `/transcribe` (Whisper) and `/ask` (Gemini) endpoints
 - [x] Dockerfile + docker-compose.yaml ready
 - [ ] Deploy to Docker host and download Danish Vosk model
 - [ ] End-to-end test of full pipeline on physical hardware
@@ -291,20 +291,14 @@ pio device monitor --baud 115200
 ```bash
 cd vosk-server
 
-# Download the Danish Vosk model (~48 MB, one-time setup)
-mkdir -p models
-wget -P models https://alphacephei.com/vosk/models/vosk-model-small-da-0.22.zip
-unzip models/vosk-model-small-da-0.22.zip -d models/
-rm models/vosk-model-small-da-0.22.zip
-
 # Add your Gemini API key
 cp .env.example .env
 # Edit .env with your key
 
-# Start the server
-docker compose up -d
+# Build and start — Whisper "base" model is downloaded into the image at build time
+docker compose up -d --build
 
-# Verify it's running
+# Verify it's running (first start may take ~30s while the model loads)
 curl http://192.168.2.14:8000/health
 ```
 
@@ -388,7 +382,7 @@ This is a personal DIY project. Notes on key decisions:
 - **ESP32-C3 over ESP32-S3:** The C3 Mini is smaller and cheaper. It lacks the dual-core of the S3 but for display driving + MQTT it is more than sufficient for Stage 1.
 - **GC9A01 driver:** We use `LovyanGFX`. TFT_eSPI was the original choice but its Arduino SPIClass wrapper causes a TG1WDT watchdog crash during SPI initialisation on ESP32-C3. LovyanGFX initialises SPI2 via the ESP-IDF `spi_master` driver directly, which works correctly.
 - **Split voice pipeline:** The Pi handles only audio I/O, wake word, TTS, and casting. The Docker server (`vosk-server/`) handles Vosk STT and Gemini AI. This keeps the Pi lightweight and API keys off the device.
-- **STT:** Vosk with the `vosk-model-small-da-0.22` Danish model running in Docker. The Pi records 16 kHz mono WAV and POSTs it to `POST /transcribe` on the server.
+- **STT:** OpenAI Whisper (`base` model) running on the Docker host (x86_64). Whisper is baked into the image at build time — no model download on first run. The Pi records 16 kHz mono WAV and POSTs it to `POST /transcribe`.
 - **AI backend:** Google Gemini 1.5 Flash called from the Docker server's `POST /ask` endpoint. Pi only sees the response text — no Gemini API key needed on the Pi.
 - **Audio casting:** pychromecast connects directly to the Nest speaker at `192.168.2.172:8009`. The Pi serves the generated MP3 over a local HTTP server so the Nest can fetch it by URL — no AirCast needed.
 - **No OTA in Stage 1:** Over-the-air updates will be added once the base firmware is stable.
