@@ -1,0 +1,7 @@
+{
+    // Tell PlatformIO where to find platformio.ini when VS Code is opened
+    // at the repo root (deskpet/) rather than inside the firmware/ subfolder.
+    // This makes the PlatformIO toolbar buttons (Build, Upload, Monitor) work
+    // correctly without having to open firmware/ as a separate workspace.
+    "platformio-ide.projectDir": "${workspaceFolder}/firmware"
+}
