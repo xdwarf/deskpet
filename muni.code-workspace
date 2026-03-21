@@ -1,0 +1,15 @@
+{
+    "folders": [
+        {
+            // Repo root — Claude Code, git, simulator/, sprite-server/, README
+            "name": "muni",
+            "path": "."
+        },
+        {
+            // Firmware subfolder — PlatformIO finds platformio.ini here
+            "name": "firmware",
+            "path": "firmware"
+        }
+    ],
+    "settings": {}
+}
