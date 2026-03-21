@@ -18,6 +18,8 @@
 #include "wifi_manager.h"
 #include "mqtt_client.h"
 #include "sprite_manager.h"
+#include "sd_card.h"
+#include "leds.h"
 
 // ---------------------------------------------------------------------------
 // setup() — runs once at boot
@@ -29,11 +31,19 @@ void setup() {
     delay(500); // Give USB serial time to enumerate on ESP32-C3
     Serial.println("\n=== DeskPet booting ===");
 
-    // Initialise the GC9A01 display first so Muni's face appears quickly,
-    // even before WiFi connects. This gives visual feedback that the device
-    // is alive.
+    // LEDs on first — they light up immediately and confirm power-on while
+    // the slower display and network init proceeds.
+    ledInit();
+
+    // Initialise the GC9A01 display. LovyanGFX calls spi_bus_initialize()
+    // here, registering SPI2_HOST. The SD card init below reuses this
+    // registration via the SPIClass(FSPI) instance in sd_card.cpp.
     displayInit();
     Serial.println("[Display] Initialised");
+
+    // Mount the SD card on the shared SPI2 bus.
+    // Must come after displayInit() so the SPI bus is already registered.
+    sdInit();
 
     // Show a loading/booting expression while we connect to the network
     expressionSet(EXPR_THINKING);
@@ -76,4 +86,8 @@ void loop() {
     // the frame interval has elapsed — so calling it every loop() is safe
     // and won't thrash the display.
     expressionTick();
+
+    // Advance the LED breathing animation.
+    // ledTick() self-throttles via millis() — safe to call every loop().
+    ledTick();
 }

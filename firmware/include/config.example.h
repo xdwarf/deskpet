@@ -58,6 +58,20 @@
 #define DISPLAY_HEIGHT 240
 
 // -----------------------------------------------------------------------------
+// SD Card — shares SPI2 with the display (same SCK/MOSI)
+// -----------------------------------------------------------------------------
+// SCK  → GPIO4  (same as display — shared bus)
+// MOSI → GPIO6  (same as display — shared bus)
+#define PIN_SD_MISO  3   // MISO — new wire, display doesn't use this line
+#define PIN_SD_CS   10   // Chip select — independent from display CS
+
+// -----------------------------------------------------------------------------
+// WS2812B RGB LEDs
+// -----------------------------------------------------------------------------
+#define PIN_LED_DATA  9   // Data line to first LED DIN
+#define LED_COUNT     3   // Number of LEDs in the chain
+
+// -----------------------------------------------------------------------------
 // Behaviour
 // -----------------------------------------------------------------------------
 // How often (ms) to step the idle animation (blink, breathe, etc.)
