@@ -3,7 +3,7 @@
 // =============================================================================
 // DeskPet — leds.h
 // =============================================================================
-// Non-blocking WS2812B LED control via FastLED.
+// Non-blocking WS2812B LED control via NeoPixelBus.
 //
 // Three LEDs on GPIO9 run a continuous slow breathing effect in midnight blue
 // (approximately R:0, G:20, B:80). The brightness pulses up and down on a
@@ -13,11 +13,16 @@
 // All timing is millis()-based. ledTick() is safe to call every loop()
 // iteration — it self-throttles and never calls delay().
 //
+// WHY NeoPixelBus OVER FastLED:
+//   FastLED's RMT and I2S backends both fail on ESP32-C3 (guru meditation
+//   panic during addLeds()). NeoPixelBus uses its own RMT driver via
+//   NeoEsp32Rmt0Ws2812xMethod, which works correctly on ESP32-C3.
+//
 // FUTURE: ledSetColour() / ledSetExpression() hooks will let the LEDs react
 // to Muni's current expression (e.g. red pulse for excited, blue for sad).
 // =============================================================================
 
-// Initialise FastLED with the LED strip configuration.
+// Initialise NeoPixelBus with the LED strip configuration.
 // Call once in setup(), before the main loop starts.
 void ledInit();
 
