@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeskPet Sprite Server</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>DeskPet Sprite Server</h1>
+    <div id="manifest-badge" class="badge">v—</div>
+  </header>
+
+  <main>
+
+    <!-- Publish form -->
+    <section class="card" id="publish-card">
+      <h2>Publish Sprite</h2>
+      <p class="hint">Upload a GIF (or PNG/JPEG). Each frame becomes one 240×240 RGB565 animation frame.</p>
+
+      <form id="publish-form">
+        <label>
+          Character
+          <input type="text" id="character" placeholder="muni" required />
+        </label>
+        <label>
+          Expression
+          <input type="text" id="expression" placeholder="happy" required />
+        </label>
+        <label>
+          Image file
+          <input type="file" id="file-input" accept="image/*" required />
+        </label>
+
+        <div class="preview-row">
+          <img id="preview-img" alt="preview" hidden />
+        </div>
+
+        <div class="btn-row">
+          <button type="button" id="btn-preview" disabled>Preview</button>
+          <button type="submit" id="btn-publish" disabled>Publish</button>
+        </div>
+      </form>
+
+      <div id="result-box" hidden></div>
+    </section>
+
+    <!-- Published sprites -->
+    <section class="card" id="library-card">
+      <h2>Published Sprites <button id="btn-refresh" class="small">Refresh</button></h2>
+      <div id="library"></div>
+    </section>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+/* DeskPet Sprite Server — UI */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0f1117;
+  --surface:  #1a1d27;
+  --border:   #2a2d3e;
+  --accent:   #5b8aff;
+  --accent2:  #8b5cf6;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --success:  #22c55e;
+  --error:    #ef4444;
+  --radius:   10px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--border);
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+main {
+  max-width: 860px;
+  margin: 32px auto;
+  padding: 0 24px;
+  display: grid;
+  gap: 24px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.card h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+
+form {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+input[type="text"],
+input[type="file"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.95rem;
+  padding: 9px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type="text"]:focus { border-color: var(--accent); }
+
+.preview-row {
+  display: flex;
+  justify-content: center;
+}
+
+#preview-img {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button:not(:disabled):active { transform: scale(0.97); }
+
+#btn-preview {
+  background: var(--border);
+  color: var(--text);
+}
+
+#btn-publish {
+  background: var(--accent);
+  color: #fff;
+  flex: 1;
+}
+
+button.small {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  background: var(--border);
+  color: var(--muted);
+}
+
+#result-box {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+#result-box.ok    { background: #0d2a1a; border: 1px solid var(--success); color: var(--success); }
+#result-box.error { background: #2a0d0d; border: 1px solid var(--error);   color: var(--error); }
+#result-box.info  { background: #0d1a2a; border: 1px solid var(--accent);  color: var(--accent); }
+
+/* Library */
+#library {
+  display: grid;
+  gap: 10px;
+}
+
+.char-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.char-name {
+  background: var(--bg);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.expr-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.expr-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--border);
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.empty-note {
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 8px 0;
+}
