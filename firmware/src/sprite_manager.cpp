@@ -1,30 +1,39 @@
 // =============================================================================
 // DeskPet — sprite_manager.cpp
 // =============================================================================
-// Downloads and caches Muni's sprite sheets from sprites.mael.dk.
+// Downloads and caches Muni's sprite sheets from the sprite server.
 // See sprite_manager.h for the full design overview.
+//
+// STORAGE SPLIT:
+//   SD card  — actual .sprite files under /sprites/<character>/
+//   NVS      — just the cached version string (Preferences, survives reboot)
+//
+// sdInit() must be called before spriteManagerInit().
+// If the SD card is not mounted (sdAvailable() == false), sprite caching is
+// skipped entirely and the device falls back to programmatic face drawing.
 // =============================================================================
 
 #include <Arduino.h>
-#include <LittleFS.h>
+#include <SD.h>
 #include <HTTPClient.h>
 #include <Preferences.h>    // Arduino wrapper around ESP-IDF NVS
 #include <ArduinoJson.h>
 #include "sprite_manager.h"
+#include "sd_card.h"
 #include "config.h"
 #include "wifi_manager.h"
 
 // ---------------------------------------------------------------------------
 // Internal state
 // ---------------------------------------------------------------------------
-static bool   s_hasSprites    = false;  // true once at least one file exists
-static char   s_cachedVersion[32] = "none";
+static bool s_hasSprites       = false;
+static char s_cachedVersion[32] = "none";
 
 // Static path buffer — reused by spriteManagerPath()
-static char   s_pathBuf[64];
+static char s_pathBuf[64];
 
 // ---------------------------------------------------------------------------
-// NVS helpers
+// NVS helpers — version string only
 // ---------------------------------------------------------------------------
 static void nvsReadVersion(char* outBuf, size_t bufLen) {
     Preferences prefs;
@@ -44,27 +53,28 @@ static void nvsWriteVersion(const char* version) {
 }
 
 // ---------------------------------------------------------------------------
-// LittleFS helpers
+// SD card helpers
 // ---------------------------------------------------------------------------
 
-// Ensure /sprites/<character>/ exists in LittleFS
+// Ensure /sprites/<character>/ exists on the SD card
 static void ensureDir() {
     char dir[48];
     snprintf(dir, sizeof(dir), "/sprites/%s", SPRITE_CHARACTER);
-    if (!LittleFS.exists(dir)) {
-        LittleFS.mkdir("/sprites");
-        LittleFS.mkdir(dir);
-        Serial.printf("[Sprites] Created directory %s\n", dir);
+    if (!SD.exists("/sprites")) {
+        SD.mkdir("/sprites");
+    }
+    if (!SD.exists(dir)) {
+        SD.mkdir(dir);
+        Serial.printf("[Sprites] Created SD directory %s\n", dir);
     }
 }
 
-// Returns true if the sprite file for a given expression exists in LittleFS
+// Returns true if the sprite file for a given expression exists on the SD card
 static bool spriteFileExists(const char* exprName) {
-    const char* path = spriteManagerPath(exprName);
-    return LittleFS.exists(path);
+    return SD.exists(spriteManagerPath(exprName));
 }
 
-// Check if any sprite file exists for the current character
+// Check whether any sprite file for the current character is on the SD card
 static bool anySpriteCached() {
     const char* expressions[] = {
         "neutral", "happy", "sad", "surprised", "sleepy", "excited", "thinking"
@@ -98,9 +108,9 @@ static String httpGetString(const char* url) {
     return body;
 }
 
-// Download a URL and save the response body to a LittleFS path.
+// Download a URL and save the response body to a path on the SD card.
 // Returns true on success.
-static bool httpDownloadToFile(const char* url, const char* fsPath) {
+static bool httpDownloadToFile(const char* url, const char* sdPath) {
     HTTPClient http;
     http.begin(url);
     http.setTimeout(15000); // sprite files can be ~113 KB — allow more time
@@ -112,15 +122,15 @@ static bool httpDownloadToFile(const char* url, const char* fsPath) {
         return false;
     }
 
-    File f = LittleFS.open(fsPath, FILE_WRITE);
+    File f = SD.open(sdPath, FILE_WRITE);
     if (!f) {
-        Serial.printf("[Sprites] Cannot open %s for writing\n", fsPath);
+        Serial.printf("[Sprites] Cannot open SD:%s for writing\n", sdPath);
         http.end();
         return false;
     }
 
     // Stream the response body directly into the file in 512-byte chunks
-    // to avoid allocating a large buffer in heap.
+    // to avoid allocating a large heap buffer.
     WiFiClient* stream = http.getStreamPtr();
     uint8_t buf[512];
     int totalBytes = 0;
@@ -141,12 +151,12 @@ static bool httpDownloadToFile(const char* url, const char* fsPath) {
 
     f.close();
     http.end();
-    Serial.printf("[Sprites] Saved %s (%d bytes)\n", fsPath, totalBytes);
+    Serial.printf("[Sprites] Saved SD:%s (%d bytes)\n", sdPath, totalBytes);
     return totalBytes > 0;
 }
 
 // ---------------------------------------------------------------------------
-// Download all sprite files for the active character
+// Download all sprite files for the active character to the SD card
 // ---------------------------------------------------------------------------
 static bool downloadSprites(const char* expressions[], int count) {
     bool allOk = true;
@@ -159,7 +169,7 @@ static bool downloadSprites(const char* expressions[], int count) {
         snprintf(url, sizeof(url), "%s/%s/%s.sprite",
                  SPRITE_SERVER_BASE_URL, SPRITE_CHARACTER, expr);
 
-        Serial.printf("[Sprites] Downloading %s → %s\n", url, path);
+        Serial.printf("[Sprites] Downloading %s → SD:%s\n", url, path);
         if (!httpDownloadToFile(url, path)) {
             Serial.printf("[Sprites] Failed to download %s — skipping\n", expr);
             allOk = false;
@@ -177,12 +187,11 @@ static bool downloadSprites(const char* expressions[], int count) {
 void spriteManagerInit() {
     Serial.println("[Sprites] Initialising...");
 
-    // --- Mount LittleFS ---
-    if (!LittleFS.begin(/*formatOnFail=*/true)) {
-        Serial.println("[Sprites] LittleFS mount failed — no sprite caching");
+    // SD card must be mounted before we can cache anything
+    if (!sdAvailable()) {
+        Serial.println("[Sprites] SD card not available — skipping sprite cache");
         return;
     }
-    Serial.println("[Sprites] LittleFS mounted");
 
     ensureDir();
 
@@ -190,7 +199,7 @@ void spriteManagerInit() {
     nvsReadVersion(s_cachedVersion, sizeof(s_cachedVersion));
     Serial.printf("[Sprites] Cached version: %s\n", s_cachedVersion);
 
-    // --- Check if we have any sprites to fall back on ---
+    // --- Check if we already have sprites to fall back on ---
     s_hasSprites = anySpriteCached();
 
     // --- Skip server check if WiFi is offline ---
@@ -226,7 +235,7 @@ void spriteManagerInit() {
         return;
     }
 
-    // --- New version available — download sprites ---
+    // --- New version available — download sprites to SD card ---
     Serial.printf("[Sprites] New version %s available (cached: %s) — downloading\n",
                   serverVersion, s_cachedVersion);
 
@@ -257,7 +266,7 @@ void spriteManagerInit() {
         // expressions.
         nvsWriteVersion(serverVersion);
         strncpy(s_cachedVersion, serverVersion, sizeof(s_cachedVersion) - 1);
-        Serial.println("[Sprites] All sprites downloaded and cached");
+        Serial.println("[Sprites] All sprites downloaded and cached to SD card");
     } else {
         Serial.println("[Sprites] Some downloads failed — version NOT updated in NVS");
     }
