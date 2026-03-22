@@ -31,7 +31,22 @@
 #include "expressions.h"
 #include "display.h"
 #include "config.h"
+#include "sprite_player.h"
 #include <math.h>  // for sin(), cos(), PI
+
+// ---------------------------------------------------------------------------
+// Expression name table — must match the Expression enum order in expressions.h
+// Used to build the SD card path for sprite files.
+// ---------------------------------------------------------------------------
+static const char* s_exprNames[] = {
+    "neutral",    // EXPR_NEUTRAL   = 0
+    "happy",      // EXPR_HAPPY     = 1
+    "sad",        // EXPR_SAD       = 2
+    "surprised",  // EXPR_SURPRISED = 3
+    "sleepy",     // EXPR_SLEEPY    = 4
+    "excited",    // EXPR_EXCITED   = 5
+    "thinking",   // EXPR_THINKING  = 6
+};
 
 // ---------------------------------------------------------------------------
 // Colour palette — 16-bit RGB565
@@ -302,7 +317,20 @@ void expressionSet(Expression expr, uint32_t holdMs) {
     s_blinking   = false;
     s_blinkFrame = 0;
 
-    Serial.printf("[Expressions] Set to %d\n", (int)expr);
+    Serial.printf("[Expressions] Set to %d (%s)\n", (int)expr, s_exprNames[expr]);
+
+    // Try to load an SD sprite for this expression.
+    // spritePlayerLoad() calls spritePlayerStop() internally before attempting
+    // to open the new file, so any previous sprite is always closed first.
+    char spritePath[64];
+    snprintf(spritePath, sizeof(spritePath), "/sprites/%s/%s.sprite",
+             SPRITE_CHARACTER, s_exprNames[expr]);
+
+    if (!spritePlayerLoad(spritePath)) {
+        // No sprite file found (or SD unavailable) — fall back to programmatic.
+        // spritePlayerLoad() has already stopped any prior playback.
+        Serial.printf("[Expressions] No sprite at %s — using programmatic face\n", spritePath);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -324,10 +352,19 @@ Expression expressionGet() {
 void expressionTick() {
     uint32_t now = millis();
 
-    // Check if the expression hold timer has expired → return to neutral
+    // Check if the expression hold timer has expired → return to neutral.
+    // This runs regardless of whether a sprite or programmatic face is active.
     if (s_exprHoldUntil > 0 && now >= s_exprHoldUntil) {
         s_exprHoldUntil = 0;
         expressionSet(EXPR_NEUTRAL);
+    }
+
+    // One-shot animations (bounce, yawn) take priority over sprite playback.
+    // They run below after the throttle check — fall through to that code.
+    // When no one-shot is active and a sprite is loaded, delegate to it.
+    if (s_currentAnim == ANIM_NONE && spritePlayerActive()) {
+        spritePlayerTick();
+        return;
     }
 
     // Throttle frame rate to IDLE_ANIMATION_INTERVAL_MS

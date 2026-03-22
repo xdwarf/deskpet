@@ -18,6 +18,7 @@
 #include "wifi_manager.h"
 #include "mqtt_client.h"
 #include "sprite_manager.h"
+#include "sprite_player.h"
 #include "sd_card.h"
 #include "leds.h"
 
@@ -31,9 +32,7 @@ void setup() {
     delay(500); // Give USB serial time to enumerate on ESP32-C3
     Serial.println("\n=== DeskPet booting ===");
 
-    // Initialise WS2812B LEDs. FastLED uses the I2S peripheral on ESP32-C3
-    // (forced via -DFASTLED_ESP32_I2S=1 in platformio.ini) rather than RMT,
-    // which avoids a guru meditation panic during addLeds() on this chip.
+    // Initialise WS2812B LEDs (NeoPixelBus, RMT channel 0).
     ledInit();
 
     // Initialise the GC9A01 display. LovyanGFX calls spi_bus_initialize()
@@ -45,6 +44,10 @@ void setup() {
     // Mount the SD card on the shared SPI2 bus.
     // Must come after displayInit() so the SPI bus is already registered.
     sdInit();
+
+    // Allocate the sprite player frame buffer (115 KB).
+    // Done here — before wifiConnect() — so the heap is uncontested.
+    spritePlayerInit();
 
     // Show a loading/booting expression while we connect to the network
     expressionSet(EXPR_THINKING);
