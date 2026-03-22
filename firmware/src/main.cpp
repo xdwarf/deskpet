@@ -31,9 +31,10 @@ void setup() {
     delay(500); // Give USB serial time to enumerate on ESP32-C3
     Serial.println("\n=== DeskPet booting ===");
 
-    // LEDs on first — they light up immediately and confirm power-on while
-    // the slower display and network init proceeds.
-    ledInit();
+    // LEDs temporarily disabled — FastLED RMT driver conflicts with ESP32-C3
+    // on some core versions, causing a panic before Serial output appears.
+    // Re-enable once the root cause is confirmed (see leds.cpp).
+    // ledInit();
 
     // Initialise the GC9A01 display. LovyanGFX calls spi_bus_initialize()
     // here, registering SPI2_HOST. The SD card init below reuses this
@@ -87,7 +88,6 @@ void loop() {
     // and won't thrash the display.
     expressionTick();
 
-    // Advance the LED breathing animation.
-    // ledTick() self-throttles via millis() — safe to call every loop().
-    ledTick();
+    // ledTick() disabled while ledInit() is commented out.
+    // ledTick();
 }

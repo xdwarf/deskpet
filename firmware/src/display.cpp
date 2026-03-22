@@ -20,6 +20,7 @@
 
 #include "display.h"
 #include "config.h"
+#include <Arduino.h>
 
 // ---------------------------------------------------------------------------
 // Global objects — declared extern in display.h
@@ -33,6 +34,15 @@ LGFX_Sprite sprite(&tft);
 
 // ---------------------------------------------------------------------------
 void displayInit() {
+    // Drive the SD card CS pin HIGH before touching the SPI bus.
+    // Until sdInit() runs, nothing has configured GPIO10 — its reset state
+    // is input/floating, which means the SD module can assert itself on the
+    // bus and corrupt the display init sequence. Pulling it HIGH here
+    // deasserts the SD CS immediately, giving the display exclusive bus access
+    // for the entirety of tft.init().
+    pinMode(PIN_SD_CS, OUTPUT);
+    digitalWrite(PIN_SD_CS, HIGH);
+
     Serial.println("[Display] Calling tft.init()...");
     Serial.flush();
 
