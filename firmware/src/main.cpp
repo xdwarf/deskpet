@@ -18,7 +18,6 @@
 #include "wifi_manager.h"
 #include "mqtt_client.h"
 #include "sprite_manager.h"
-#include "sprite_player.h"
 #include "sd_card.h"
 #include "leds.h"
 
@@ -44,10 +43,6 @@ void setup() {
     // Mount the SD card on the shared SPI2 bus.
     // Must come after displayInit() so the SPI bus is already registered.
     sdInit();
-
-    // Allocate the sprite player frame buffer (115 KB).
-    // Done here — before wifiConnect() — so the heap is uncontested.
-    spritePlayerInit();
 
     // Show a loading/booting expression while we connect to the network
     expressionSet(EXPR_THINKING);
