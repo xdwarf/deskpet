@@ -213,6 +213,13 @@ button.small {
   font-size: 0.82rem;
   color: var(--muted);
   text-transform: capitalize;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.expr-chip:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 .empty-note {

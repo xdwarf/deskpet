@@ -52,7 +52,7 @@ function renderLibrary(data) {
     <div class="char-group">
       <div class="char-name">${char}</div>
       <div class="expr-list">
-        ${data[char].map(e => `<span class="expr-chip">${e}</span>`).join("")}
+        ${data[char].map(e => `<a class="expr-chip" href="/download/${encodeURIComponent(char)}/${encodeURIComponent(e)}" download="${e}.sprite">${e}</a>`).join("")}
       </div>
     </div>
   `).join("");
