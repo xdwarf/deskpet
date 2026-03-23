@@ -37,7 +37,19 @@ static char s_pathBuf[64];
 // ---------------------------------------------------------------------------
 static void nvsReadVersion(char* outBuf, size_t bufLen) {
     Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, /*readOnly=*/true);
+    // Open read-write (readOnly=false) so ESP-IDF creates the namespace in NVS
+    // flash if it doesn't exist yet. Opening a non-existent namespace as
+    // read-only returns NOT_FOUND and prefs.getString() returns the default,
+    // but also logs an error and leaves the namespace uncreated — meaning the
+    // same error fires on every subsequent boot until a write finally creates
+    // it. Opening read-write is safe here: we only read, but the namespace
+    // is initialised so the next write succeeds silently.
+    if (!prefs.begin(NVS_NAMESPACE, /*readOnly=*/false)) {
+        Serial.println("[Sprites] NVS open failed — treating cached version as 'none'");
+        strncpy(outBuf, "none", bufLen - 1);
+        outBuf[bufLen - 1] = '\0';
+        return;
+    }
     String v = prefs.getString(NVS_KEY_SPRITE_VERSION, "none");
     prefs.end();
     strncpy(outBuf, v.c_str(), bufLen - 1);
