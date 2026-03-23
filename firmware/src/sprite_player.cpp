@@ -18,6 +18,14 @@
 // pushes CHUNK_ROWS at a time. Because each tft.pushImage() call ends with
 // SPI.endTransaction() (bus_shared=true in lgfx_config.h), the SD library
 // can take the SPI2 bus for the next s_file.read() without conflict.
+//
+// LOOP vs PLAY-ONCE
+// =================
+// spritePlayerLoad(path, loop=true)  — neutral idle; loops forever.
+// spritePlayerLoad(path, loop=false) — expression; plays through once, stops,
+//   and sets s_finished = true so expressionTick() can call expressionSet(NEUTRAL).
+//   spritePlayerStop() (interrupt) deliberately does NOT set s_finished — only
+//   natural play-through completion triggers the return to neutral.
 // =============================================================================
 
 #include <Arduino.h>
@@ -44,13 +52,15 @@ static uint8_t s_chunkBuf[CHUNK_BYTES];
 // ---------------------------------------------------------------------------
 static File     s_file;
 static bool     s_active      = false;
+static bool     s_loop        = true;  // true = loop forever, false = play once
+static bool     s_finished    = false; // set for one tick after play-once completes
 static uint32_t s_lastFrameMs = 0;
-static uint32_t s_frameIndex  = 0; // 1-based, for logging only
+static uint32_t s_frameIndex  = 0;    // 0-based
 static uint32_t s_totalFrames = 0;
 static uint32_t s_loopCount   = 0;
 
 // ---------------------------------------------------------------------------
-bool spritePlayerLoad(const char* path) {
+bool spritePlayerLoad(const char* path, bool loop) {
     spritePlayerStop(); // close any currently open file first
 
     if (!sdAvailable()) {
@@ -79,11 +89,13 @@ bool spritePlayerLoad(const char* path) {
     s_totalFrames = fileSize / FRAME_BYTES;
     s_frameIndex  = 0;
     s_loopCount   = 0;
+    s_loop        = loop;
+    s_finished    = false;
     s_lastFrameMs = 0; // render first frame immediately on next tick
     s_active      = true;
 
-    Serial.printf("[SpritePlayer] Loaded %s (%lu frame(s), %lu B)\n",
-                  path, s_totalFrames, fileSize);
+    Serial.printf("[SpritePlayer] Loaded %s (%lu frame(s), %s)\n",
+                  path, s_totalFrames, loop ? "looping" : "play once");
     return true;
 }
 
@@ -92,12 +104,23 @@ void spritePlayerStop() {
     if (s_active) {
         s_file.close();
         s_active = false;
+        // s_finished is NOT set here — only natural play-through completion
+        // signals the return to neutral. An interrupted sprite is just dropped.
     }
 }
 
 // ---------------------------------------------------------------------------
 bool spritePlayerActive() {
     return s_active;
+}
+
+// ---------------------------------------------------------------------------
+bool spritePlayerFinished() {
+    // Returns true exactly once after a play-once sprite completes naturally.
+    // Cleared on read so the caller only sees it for a single tick.
+    bool f = s_finished;
+    s_finished = false;
+    return f;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,11 +132,21 @@ void spritePlayerTick() {
 
     uint32_t frameStart = now;
 
-    // Seek back to start when all frames have played
+    // End of file reached
     if (s_frameIndex >= s_totalFrames) {
-        s_file.seek(0);
-        s_frameIndex = 0;
-        s_loopCount++;
+        if (s_loop) {
+            // Loop: seek back and keep playing
+            s_file.seek(0);
+            s_frameIndex = 0;
+            s_loopCount++;
+        } else {
+            // Play-once: stop and signal completion
+            Serial.printf("[SpritePlayer] Finished after %lu loop(s)\n", s_loopCount);
+            s_file.close();
+            s_active   = false;
+            s_finished = true;
+            return;
+        }
     }
 
     // Stream the frame CHUNK_ROWS at a time.
@@ -134,9 +167,6 @@ void spritePlayerTick() {
             return;
         }
 
-        // pushImage for this horizontal slice.
-        // With bus_shared=true LovyanGFX calls SPI.endTransaction() after
-        // each call, releasing the bus for the next SD read above.
         tft.pushImage(0, rowY, DISPLAY_WIDTH, CHUNK_ROWS,
                       (lgfx::rgb565_t*)s_chunkBuf);
 

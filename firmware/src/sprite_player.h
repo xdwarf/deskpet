@@ -37,18 +37,27 @@
 //   bypassing the programmatic blink/breathe path.
 // =============================================================================
 
-// Open a sprite file and begin looping it.
+// Open a sprite file and begin playing it.
 // path: absolute SD path, e.g. "/sprites/muni/happy.sprite"
+// loop: true  → loops forever (use for neutral idle)
+//        false → plays once through then stops; spritePlayerFinished() will
+//                return true for one tick so the caller can react
 // Returns false if SD is unavailable, file not found, or file too small.
 // On false the caller should fall back to programmatic drawing.
-bool spritePlayerLoad(const char* path);
+bool spritePlayerLoad(const char* path, bool loop = true);
 
-// Stop playback and close the current file.
+// Interrupt playback and close the current file immediately.
+// Does NOT set the finished flag — only natural play-through does that.
 // Safe to call when nothing is playing.
 void spritePlayerStop();
 
-// Returns true if a sprite file is currently open and looping.
+// Returns true if a sprite file is currently open and playing.
 bool spritePlayerActive();
+
+// Returns true exactly once after a play-once (loop=false) sprite completes
+// its final frame naturally. Cleared on read. Use this in expressionTick()
+// to trigger the return to neutral without a timer.
+bool spritePlayerFinished();
 
 // Advance playback by one frame if 50ms have elapsed.
 // Safe to call every loop() — self-throttles via millis().

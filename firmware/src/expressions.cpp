@@ -302,34 +302,33 @@ static void drawFace(Expression expr,
 // expressionSet — change the current persistent expression
 // ---------------------------------------------------------------------------
 void expressionSet(Expression expr, uint32_t holdMs) {
-    s_currentExpr = expr;
+    s_currentExpr   = expr;
+    s_exprHoldUntil = 0; // clear any existing timer; sprite playback drives
+                          // the return to neutral, not a timeout
 
-    if (holdMs > 0) {
-        s_exprHoldUntil = millis() + holdMs;
-    } else if (holdMs == 0 && s_exprHoldUntil == 0) {
-        // Use the config default if the caller passed 0 and there's no existing timer
-        // EXPRESSION_HOLD_MS = 0 means "hold forever" per config.example.h definition
-        s_exprHoldUntil = 0;
-    }
-
-    // Reset blink timer so we don't immediately blink on expression change
+    // Reset blink state on every expression change
     s_blinkTimer = millis() + 3000;
     s_blinking   = false;
     s_blinkFrame = 0;
 
     Serial.printf("[Expressions] Set to %d (%s)\n", (int)expr, s_exprNames[expr]);
 
-    // Try to load an SD sprite for this expression.
-    // spritePlayerLoad() calls spritePlayerStop() internally before attempting
-    // to open the new file, so any previous sprite is always closed first.
+    // neutral loops forever; every other expression plays once then returns
+    // to neutral when spritePlayerFinished() fires in expressionTick().
+    bool loop = (expr == EXPR_NEUTRAL);
+
     char spritePath[64];
     snprintf(spritePath, sizeof(spritePath), "/sprites/%s/%s.sprite",
              SPRITE_CHARACTER, s_exprNames[expr]);
 
-    if (!spritePlayerLoad(spritePath)) {
-        // No sprite file found (or SD unavailable) — fall back to programmatic.
-        // spritePlayerLoad() has already stopped any prior playback.
+    if (!spritePlayerLoad(spritePath, loop)) {
+        // No sprite file — fall back to programmatic face.
+        // For non-neutral expressions, reinstate the hold timer so Muni
+        // still returns to neutral eventually (timer-driven fallback only).
         Serial.printf("[Expressions] No sprite at %s — using programmatic face\n", spritePath);
+        if (expr != EXPR_NEUTRAL && holdMs > 0) {
+            s_exprHoldUntil = millis() + holdMs;
+        }
     }
 }
 
@@ -364,6 +363,11 @@ void expressionTick() {
     // When no one-shot is active and a sprite is loaded, delegate to it.
     if (s_currentAnim == ANIM_NONE && spritePlayerActive()) {
         spritePlayerTick();
+        // If a play-once expression sprite just played its last frame,
+        // switch back to neutral immediately (no timer — completion-driven).
+        if (spritePlayerFinished()) {
+            expressionSet(EXPR_NEUTRAL);
+        }
         return;
     }
 
