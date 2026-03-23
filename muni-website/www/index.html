@@ -36,8 +36,8 @@
       top: 12%;
       background: linear-gradient(90deg,
         transparent 5%,
-        rgba(20, 184, 166, 0.45) 30%,
-        rgba(134, 239, 172, 0.35) 60%,
+        rgba(0, 255, 127, 0.80) 30%,
+        rgba(0, 200, 100, 0.65) 60%,
         transparent 95%);
       animation: aurora-drift 9s ease-in-out infinite;
     }
@@ -46,8 +46,8 @@
       top: 30%;
       background: linear-gradient(90deg,
         transparent 10%,
-        rgba(139, 92, 246, 0.30) 32%,
-        rgba(20, 184, 166, 0.40) 62%,
+        rgba(123, 47, 255, 0.60) 32%,
+        rgba(0, 255, 127, 0.70) 62%,
         transparent 90%);
       animation: aurora-drift 13s ease-in-out infinite reverse;
       animation-delay: -5s;
@@ -57,8 +57,8 @@
       top: 52%;
       background: linear-gradient(90deg,
         transparent 15%,
-        rgba(134, 239, 172, 0.28) 42%,
-        rgba(245, 158, 11, 0.18) 70%,
+        rgba(0, 255, 127, 0.55) 42%,
+        rgba(255, 215, 0,   0.45) 70%,
         transparent 90%);
       animation: aurora-drift 17s ease-in-out infinite;
       animation-delay: -9s;
@@ -83,15 +83,17 @@
     /* ── Rune cold-pulse ───────────────────────────────────── */
     @keyframes rune-pulse {
       0%, 100% {
-        opacity: 0.75;
-        text-shadow: 0 0 10px var(--scroll-accent, #93c5fd),
-                     0 0 22px var(--scroll-accent, #93c5fd);
+        opacity: 0.85;
+        text-shadow: 0 0 12px var(--scroll-accent, #93c5fd),
+                     0 0 30px var(--scroll-accent, #93c5fd),
+                     0 0 55px var(--scroll-accent, #93c5fd);
       }
       50% {
         opacity: 1;
-        text-shadow: 0 0 16px var(--scroll-accent, #93c5fd),
-                     0 0 36px var(--scroll-accent, #93c5fd),
-                     0 0 60px var(--scroll-accent, #93c5fd);
+        text-shadow: 0 0 20px var(--scroll-accent, #93c5fd),
+                     0 0 50px var(--scroll-accent, #93c5fd),
+                     0 0 90px var(--scroll-accent, #93c5fd),
+                     0 0 140px var(--scroll-accent, #93c5fd);
       }
     }
 
@@ -140,12 +142,12 @@
     }
 
     #lore {
-      background: rgba(2, 4, 10, 0.52);
+      background: rgba(2, 4, 10, 0.22);
       position: relative;
     }
 
     #products {
-      background: rgba(2, 4, 10, 0.58);
+      background: rgba(2, 4, 10, 0.22);
       position: relative;
     }
 
@@ -165,24 +167,38 @@
       border-top: 1px solid var(--border);
     }
 
-    /* ── Day-mode spring green on products ─────────────────── */
+    /* ── Day-mode spring green + gold on products ──────────── */
+    .day-green .card {
+      border-color: rgba(0, 255, 127, 0.25) !important;
+      box-shadow: 0 0 30px rgba(0,255,127,0.12), 0 10px 30px rgba(0,0,0,0.3) !important;
+    }
     .day-green .card.featured {
-      border-color: rgba(74, 222, 128, 0.45) !important;
-      box-shadow: 0 0 60px rgba(74, 222, 128, 0.14),
-                  0 20px 40px rgba(0,0,0,0.4) !important;
+      border-color: #00ff7f !important;
+      box-shadow: 0 0 40px rgba(0,255,127,0.70),
+                  0 0 90px rgba(0,255,127,0.35),
+                  0 0 140px rgba(255,215,0,0.20),
+                  0 20px 50px rgba(0,0,0,0.5) !important;
     }
     .day-green .featured-star {
-      background: linear-gradient(135deg, #22c55e, #16a34a) !important;
-      color: #031208 !important;
+      background: linear-gradient(135deg, #00ff7f, #00cc60) !important;
+      color: #001a08 !important;
+      box-shadow: 0 0 18px rgba(0,255,127,0.8) !important;
     }
     .day-green .tier-features li::before {
-      color: #4ade80 !important;
+      color: #00ff7f !important;
       opacity: 1 !important;
+      text-shadow: 0 0 8px #00ff7f !important;
     }
     .day-green .tier-badge.physical {
-      background: rgba(74, 222, 128, 0.12) !important;
-      color: #86efac !important;
-      border-color: rgba(74, 222, 128, 0.35) !important;
+      background: rgba(0, 255, 127, 0.18) !important;
+      color: #00ff7f !important;
+      border-color: rgba(0,255,127,0.6) !important;
+      box-shadow: 0 0 12px rgba(0,255,127,0.4) !important;
+    }
+    .day-green .btn-amber {
+      box-shadow: 0 0 30px rgba(255,215,0,0.55),
+                  0 0 60px rgba(255,215,0,0.28),
+                  0 4px 16px rgba(0,0,0,0.4) !important;
     }
 
     /* ── Existing page styles (layout, unchanged) ───────────── */
@@ -830,16 +846,17 @@
     function smoothstep(t) { return t * t * (3 - 2 * t); }
 
     // ── Color keyframes ───────────────────────────────────────
-    //                         Night           Dawn            Day
-    const SKY_TOP  = [ [20,  10,  60], [ 8,  40,  48], [42,  28,   8] ];
-    const SKY_MID  = [ [ 8,   6,  22], [ 5,  22,  30], [22,  16,   5] ];
-    const SKY_BOT  = [ [ 3,   5,  13], [ 4,  10,  16], [10,   9,   5] ];
+    //                          Night             Dawn              Day
+    // Night: #0a0a2e  Dawn: #0d2b2b  Day top: #0f2a0a  Day bot: #1a1a00
+    const SKY_TOP  = [ [ 10,  10,  46], [ 13,  43,  43], [ 15,  42,  10] ];
+    const SKY_MID  = [ [  8,   8,  36], [  9,  30,  30], [ 22,  26,   5] ];
+    const SKY_BOT  = [ [  6,   6,  22], [  6,  18,  18], [ 26,  20,   0] ];
 
-    // Raven magic aura tint
-    const MAGIC    = [ [139, 92, 246], [20, 184, 166], [245, 158,  11] ];
+    // Raven magic aura: #7b2fff violet → #00ff7f spring green → #ffd700 gold
+    const MAGIC    = [ [123,  47, 255], [  0, 255, 127], [255, 215,   0] ];
 
-    // Scroll-accent: rune labels, dividers, eyebrow text
-    const ACCENT   = [ [147, 197, 253], [94, 234, 212], [251, 191,  36] ];
+    // Scroll-accent text/rune: cold violet-blue → #00ff7f spring green → #ffd700 gold
+    const ACCENT   = [ [147, 197, 253], [  0, 255, 127], [255, 215,   0] ];
 
     // ── RAF-throttled scroll handler ──────────────────────────
     let ticking = false;
@@ -874,24 +891,28 @@
         `radial-gradient(ellipse 140% 75% at 50% -5%,` +
         ` ${rgb(top)} 0%, ${rgb(mid)} 42%, ${rgb(bot)} 100%)`;
 
-      // ── 2. Star field fades at dawn ───────────────────────
-      const starOpacity = Math.max(0, 1 - t * 2.8);
+      // ── 2. Star field: bright at night, fade through dawn ────
+      const starOpacity  = Math.max(0, 1 - t * 2.8);
+      // Boost brightness at night so white dots are clearly visible
+      const starBright   = Math.max(1, lerp(4.0, 1, t * 3)).toFixed(2);
       starfield.style.opacity = starOpacity.toFixed(3);
+      starfield.style.filter  = `brightness(${starBright})`;
 
-      // ── 3. Aurora veil — peaks mid-dawn ──────────────────
-      // Bell curve centred on t=0.45
-      const auroraPeak = Math.max(0, 1 - Math.abs(t - 0.45) * 2.6);
-      auroraVeil.style.opacity = (auroraPeak * 0.9).toFixed(3);
+      // ── 3. Aurora veil — peaks at dawn ───────────────────
+      // Bell curve centred on t=0.45, much stronger than before
+      const auroraPeak = Math.max(0, 1 - Math.abs(t - 0.45) * 2.2);
+      auroraVeil.style.opacity = (auroraPeak * 0.95).toFixed(3);
 
       // ── 4. Raven magic aura ───────────────────────────────
       const magicColor = tri(MAGIC[0], MAGIC[1], MAGIC[2], t);
-      // Strongest at night (violet), softer once day arrives
-      const magicStr   = t < 0.5 ? lerp(0.28, 0.14, t * 2) : lerp(0.14, 0.08, (t - 0.5) * 2);
+      // Night: 0.65 opacity (spec: "0.6+"), fades through dawn/day
+      const magicCore  = t < 0.5 ? lerp(0.65, 0.50, t * 2) : lerp(0.50, 0.30, (t - 0.5) * 2);
+      const magicMid   = magicCore * 0.40;
       ravenMagic.style.background =
         `radial-gradient(circle, ` +
-        `${rgba(magicColor, (magicStr).toFixed(3))} 0%, ` +
-        `${rgba(magicColor, (magicStr * 0.3).toFixed(3))} 45%, ` +
-        `transparent 72%)`;
+        `${rgba(magicColor, magicCore.toFixed(3))} 0%, ` +
+        `${rgba(magicColor, magicMid.toFixed(3))} 40%, ` +
+        `transparent 70%)`;
 
       // ── 5. CSS accent var — runes, dividers, labels ───────
       const accent = tri(ACCENT[0], ACCENT[1], ACCENT[2], t);
