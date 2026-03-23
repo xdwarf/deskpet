@@ -11,7 +11,14 @@
 // sdInit() must be called before spriteManagerInit().
 // If the SD card is not mounted (sdAvailable() == false), sprite caching is
 // skipped entirely and the device falls back to programmatic face drawing.
+//
+// SPRITE_DOWNLOAD_ENABLED
+// =======================
+// Set to 1 to re-enable manifest fetch and sprite download on boot.
+// While 0, spriteManagerInit() only scans the SD card for existing files
+// and reports what it finds — no network requests are made.
 // =============================================================================
+#define SPRITE_DOWNLOAD_ENABLED 0
 
 #include <Arduino.h>
 #include <SD.h>
@@ -213,7 +220,9 @@ void spriteManagerInit() {
 
     // --- Check if we already have sprites to fall back on ---
     s_hasSprites = anySpriteCached();
+    Serial.printf("[Sprites] SD sprites present: %s\n", s_hasSprites ? "yes" : "no");
 
+#if SPRITE_DOWNLOAD_ENABLED
     // --- Skip server check if WiFi is offline ---
     if (!wifiIsConnected()) {
         Serial.println("[Sprites] WiFi offline — using cached sprites");
@@ -282,6 +291,9 @@ void spriteManagerInit() {
     } else {
         Serial.println("[Sprites] Some downloads failed — version NOT updated in NVS");
     }
+#else
+    Serial.println("[Sprites] Download disabled (SPRITE_DOWNLOAD_ENABLED=0) — using SD card files as-is");
+#endif
 }
 
 // ---------------------------------------------------------------------------
