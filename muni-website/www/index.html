@@ -6,7 +6,119 @@
   <title>Muni — The Desk Raven</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* ── Hero ───────────────────────────────────────────────── */
+    /* ── Scroll-driven sky layers ───────────────────────────── */
+    #world-sky {
+      position: fixed;
+      inset: 0;
+      z-index: -3;
+      pointer-events: none;
+    }
+
+    #aurora-veil {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      pointer-events: none;
+      opacity: 0;
+      will-change: opacity;
+    }
+
+    .aurora-band {
+      position: absolute;
+      left: -10%;
+      right: -10%;
+      height: 300px;
+      border-radius: 50%;
+      filter: blur(60px);
+    }
+
+    .ab-1 {
+      top: 12%;
+      background: linear-gradient(90deg,
+        transparent 5%,
+        rgba(20, 184, 166, 0.45) 30%,
+        rgba(134, 239, 172, 0.35) 60%,
+        transparent 95%);
+      animation: aurora-drift 9s ease-in-out infinite;
+    }
+
+    .ab-2 {
+      top: 30%;
+      background: linear-gradient(90deg,
+        transparent 10%,
+        rgba(139, 92, 246, 0.30) 32%,
+        rgba(20, 184, 166, 0.40) 62%,
+        transparent 90%);
+      animation: aurora-drift 13s ease-in-out infinite reverse;
+      animation-delay: -5s;
+    }
+
+    .ab-3 {
+      top: 52%;
+      background: linear-gradient(90deg,
+        transparent 15%,
+        rgba(134, 239, 172, 0.28) 42%,
+        rgba(245, 158, 11, 0.18) 70%,
+        transparent 90%);
+      animation: aurora-drift 17s ease-in-out infinite;
+      animation-delay: -9s;
+    }
+
+    @keyframes aurora-drift {
+      0%, 100% { transform: translateX(-6%) scaleY(1.0) skewX(-2deg); }
+      33%       { transform: translateX( 5%) scaleY(1.4) skewX( 1deg); }
+      66%       { transform: translateX(-2%) scaleY(0.7) skewX(-1deg); }
+    }
+
+    /* ── Raven violet magic aura ───────────────────────────── */
+    .raven-magic {
+      position: absolute;
+      inset: -44px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      will-change: background;
+    }
+
+    /* ── Rune cold-pulse ───────────────────────────────────── */
+    @keyframes rune-pulse {
+      0%, 100% {
+        opacity: 0.75;
+        text-shadow: 0 0 10px var(--scroll-accent, #93c5fd),
+                     0 0 22px var(--scroll-accent, #93c5fd);
+      }
+      50% {
+        opacity: 1;
+        text-shadow: 0 0 16px var(--scroll-accent, #93c5fd),
+                     0 0 36px var(--scroll-accent, #93c5fd),
+                     0 0 60px var(--scroll-accent, #93c5fd);
+      }
+    }
+
+    .rune-pulse { animation: rune-pulse 2.8s ease-in-out infinite; }
+
+    /* ── Accent colour override — all driven by scroll ─────── */
+    .rune-label {
+      color: var(--scroll-accent, var(--amber)) !important;
+    }
+    .rune-divider::before,
+    .rune-divider::after {
+      background: linear-gradient(90deg,
+        transparent,
+        var(--scroll-accent, var(--amber)),
+        transparent) !important;
+    }
+    .rune-divider span {
+      color: var(--scroll-accent, var(--amber)) !important;
+    }
+    .lore-runes {
+      color: var(--scroll-accent, var(--amber)) !important;
+    }
+    .lore-body .joke {
+      border-left-color: var(--scroll-accent, var(--amber)) !important;
+    }
+
+    /* ── Section backgrounds — semi-transparent to bleed sky ─ */
     #hero {
       min-height: 100vh;
       display: flex;
@@ -14,10 +126,7 @@
       justify-content: center;
       text-align: center;
       position: relative;
-      background: radial-gradient(ellipse 80% 60% at 50% 40%,
-        rgba(30, 58, 95, 0.35) 0%,
-        rgba(6, 9, 26, 0.6) 50%,
-        var(--void) 100%);
+      background: transparent;   /* world-sky handles night */
       overflow: hidden;
     }
 
@@ -26,10 +135,57 @@
       position: absolute;
       bottom: 0; left: 0; right: 0;
       height: 200px;
-      background: linear-gradient(to bottom, transparent, var(--void));
+      background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.4));
       pointer-events: none;
     }
 
+    #lore {
+      background: rgba(2, 4, 10, 0.52);
+      position: relative;
+    }
+
+    #products {
+      background: rgba(2, 4, 10, 0.58);
+      position: relative;
+    }
+
+    #products::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent,
+        var(--scroll-accent, var(--border2)),
+        transparent);
+    }
+
+    footer {
+      background: rgba(2, 3, 8, 0.82);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Day-mode spring green on products ─────────────────── */
+    .day-green .card.featured {
+      border-color: rgba(74, 222, 128, 0.45) !important;
+      box-shadow: 0 0 60px rgba(74, 222, 128, 0.14),
+                  0 20px 40px rgba(0,0,0,0.4) !important;
+    }
+    .day-green .featured-star {
+      background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+      color: #031208 !important;
+    }
+    .day-green .tier-features li::before {
+      color: #4ade80 !important;
+      opacity: 1 !important;
+    }
+    .day-green .tier-badge.physical {
+      background: rgba(74, 222, 128, 0.12) !important;
+      color: #86efac !important;
+      border-color: rgba(74, 222, 128, 0.35) !important;
+    }
+
+    /* ── Existing page styles (layout, unchanged) ───────────── */
     .hero-content {
       position: relative;
       z-index: 2;
@@ -41,7 +197,7 @@
       font-size: 0.72rem;
       letter-spacing: 0.5em;
       text-transform: uppercase;
-      color: var(--amber);
+      color: var(--scroll-accent, #93c5fd);
       opacity: 0.9;
       margin-bottom: 24px;
     }
@@ -78,22 +234,25 @@
       border-radius: 50%;
       background: radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, transparent 70%);
       animation: halo-pulse 4s ease-in-out infinite;
+      z-index: 1;
     }
 
     @keyframes halo-pulse {
-      0%, 100% { transform: scale(1); opacity: 0.5; }
-      50%       { transform: scale(1.15); opacity: 1; }
+      0%, 100% { transform: scale(1);    opacity: 0.5; }
+      50%       { transform: scale(1.15); opacity: 1;   }
     }
 
     .raven-float {
       animation: raven-float 5s ease-in-out infinite;
       transform-origin: center bottom;
+      position: relative;
+      z-index: 2;
     }
 
     @keyframes raven-float {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      0%, 100% { transform: translateY(0px)  rotate( 0deg); }
       25%       { transform: translateY(-14px) rotate(-1deg); }
-      75%       { transform: translateY(-10px) rotate(1deg); }
+      75%       { transform: translateY(-10px) rotate( 1deg); }
     }
 
     .raven-eye-glow {
@@ -102,18 +261,11 @@
 
     @keyframes eye-glow {
       0%, 100% { filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.8)); }
-      50%       { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 1)) drop-shadow(0 0 32px rgba(245, 158, 11, 0.5)); }
+      50%       { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 1))
+                           drop-shadow(0 0 32px rgba(245, 158, 11, 0.5)); }
     }
 
     /* ── Lore ───────────────────────────────────────────────── */
-    #lore {
-      background: linear-gradient(180deg,
-        var(--void) 0%,
-        var(--deep) 40%,
-        var(--abyss) 100%);
-      position: relative;
-    }
-
     .lore-inner {
       max-width: 760px;
       margin: 0 auto;
@@ -135,7 +287,7 @@
     .lore-quote::before {
       content: '"';
       font-size: 5rem;
-      color: var(--amber);
+      color: var(--scroll-accent, var(--amber));
       opacity: 0.15;
       position: absolute;
       top: -30px;
@@ -152,9 +304,7 @@
       margin-top: 40px;
     }
 
-    .lore-body p + p {
-      margin-top: 20px;
-    }
+    .lore-body p + p { margin-top: 20px; }
 
     .lore-body .joke {
       display: block;
@@ -181,19 +331,6 @@
     }
 
     /* ── Products ───────────────────────────────────────────── */
-    #products {
-      background: var(--abyss);
-      position: relative;
-    }
-
-    #products::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border2), transparent);
-    }
-
     .products-header {
       text-align: center;
       margin-bottom: 64px;
@@ -219,9 +356,7 @@
       .products-grid { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
     }
 
-    .product-tier {
-      position: relative;
-    }
+    .product-tier { position: relative; }
 
     .tier-badge {
       display: inline-block;
@@ -234,9 +369,9 @@
       margin-bottom: 20px;
     }
 
-    .tier-badge.digital  { background: rgba(59, 130, 246, 0.15); color: var(--ice-pale); border: 1px solid rgba(59,130,246,0.3); }
-    .tier-badge.physical { background: rgba(245, 158, 11, 0.12); color: var(--amber-warm); border: 1px solid rgba(245,158,11,0.3); }
-    .tier-badge.streamer { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
+    .tier-badge.digital  { background: rgba(59,130,246,0.15); color: var(--ice-pale);    border: 1px solid rgba(59,130,246,0.3); }
+    .tier-badge.physical { background: rgba(245,158,11,0.12); color: var(--amber-warm);  border: 1px solid rgba(245,158,11,0.3); }
+    .tier-badge.streamer { background: rgba(139,92,246,0.15);  color: #c4b5fd;            border: 1px solid rgba(139,92,246,0.3); }
 
     .tier-name {
       font-family: var(--font-heading);
@@ -262,8 +397,8 @@
       opacity: 0.7;
     }
 
-    .tier-price.amber-price { color: var(--amber); }
-    .tier-price.frost-price { color: var(--frost); }
+    .tier-price.amber-price  { color: var(--amber); }
+    .tier-price.frost-price  { color: var(--frost); }
     .tier-price.purple-price { color: #c4b5fd; }
 
     .tier-desc {
@@ -313,9 +448,9 @@
       text-transform: uppercase;
     }
 
-    /* ── Ambient glow behind featured card ── */
     .card.featured {
-      box-shadow: 0 0 60px rgba(245, 158, 11, 0.08), 0 20px 40px rgba(0,0,0,0.5);
+      box-shadow: 0 0 60px rgba(245,158,11,0.08), 0 20px 40px rgba(0,0,0,0.5);
+      transition: border-color 0.6s, box-shadow 0.6s;
     }
 
     .featured-star {
@@ -331,10 +466,19 @@
       text-transform: uppercase;
       color: #0a0500;
       font-weight: 700;
+      transition: background 0.6s, color 0.6s;
     }
   </style>
 </head>
 <body>
+
+  <!-- Fixed sky layers — world-sky behind everything, aurora mid-layer -->
+  <div id="world-sky"></div>
+  <div id="aurora-veil">
+    <div class="aurora-band ab-1"></div>
+    <div class="aurora-band ab-2"></div>
+    <div class="aurora-band ab-3"></div>
+  </div>
 
   <!-- NAV -->
   <nav id="nav">
@@ -346,15 +490,16 @@
     </ul>
   </nav>
 
-  <!-- HERO -->
+  <!-- HERO — Night sky, violet magic -->
   <section id="hero">
-    <div class="starfield"></div>
+    <div class="starfield" id="starfield"></div>
 
     <div class="hero-content">
-      <p class="hero-eyebrow fade-in">ᚢ ᚠ ᚦ ᚷ &nbsp;·&nbsp; Companion of Odin &nbsp;·&nbsp; ᛗ ᚢ ᚾ ᛁ</p>
+      <p class="hero-eyebrow rune-pulse fade-in" id="hero-runes">ᚢ ᚠ ᚦ ᚷ &nbsp;·&nbsp; Companion of Odin &nbsp;·&nbsp; ᛗ ᚢ ᚾ ᛁ</p>
 
-      <!-- Animated Raven SVG -->
+      <!-- Animated Raven SVG with magic aura -->
       <div class="raven-wrap fade-in fade-in-delay-1">
+        <div class="raven-magic" id="raven-magic"></div>
         <div class="raven-halo"></div>
         <svg class="raven-float" viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg" aria-label="Muni the raven">
           <defs>
@@ -455,7 +600,7 @@
     </div>
   </section>
 
-  <!-- LORE -->
+  <!-- LORE — Dawn, aurora borealis, spring green bleeding in -->
   <section id="lore">
     <div class="container">
       <div class="lore-inner">
@@ -523,7 +668,7 @@
     </div>
   </section>
 
-  <!-- PRODUCTS -->
+  <!-- PRODUCTS — Day, warm amber light, spring green pops -->
   <section id="products">
     <div class="container">
 
@@ -641,22 +786,123 @@
   </footer>
 
   <script>
-    // Sticky nav
+    // ── Sticky nav ────────────────────────────────────────────
     const nav = document.getElementById('nav');
     window.addEventListener('scroll', () => {
       nav.classList.toggle('scrolled', window.scrollY > 60);
     });
 
-    // Entrance animations via IntersectionObserver
+    // ── Entrance animations ───────────────────────────────────
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add('visible');
-        }
-      });
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
     }, { threshold: 0.12 });
 
     document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // ── Scroll-driven day/night transition ────────────────────
+    const worldSky   = document.getElementById('world-sky');
+    const auroraVeil = document.getElementById('aurora-veil');
+    const ravenMagic = document.getElementById('raven-magic');
+    const starfield  = document.getElementById('starfield');
+    const products   = document.getElementById('products');
+    const root       = document.documentElement;
+
+    // Linear interpolation helpers
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function lerpRgb(c0, c1, t) {
+      return [
+        Math.round(lerp(c0[0], c1[0], t)),
+        Math.round(lerp(c0[1], c1[1], t)),
+        Math.round(lerp(c0[2], c1[2], t)),
+      ];
+    }
+
+    // Three-stop (Night → Dawn → Day) interpolation
+    function tri(c0, c1, c2, t) {
+      return t < 0.5 ? lerpRgb(c0, c1, t * 2) : lerpRgb(c1, c2, (t - 0.5) * 2);
+    }
+
+    function rgb([r, g, b])     { return `rgb(${r},${g},${b})`; }
+    function rgba([r, g, b], a) { return `rgba(${r},${g},${b},${a})`; }
+
+    // Ease in/out — makes the transitions feel physical, not linear
+    function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+    // ── Color keyframes ───────────────────────────────────────
+    //                         Night           Dawn            Day
+    const SKY_TOP  = [ [20,  10,  60], [ 8,  40,  48], [42,  28,   8] ];
+    const SKY_MID  = [ [ 8,   6,  22], [ 5,  22,  30], [22,  16,   5] ];
+    const SKY_BOT  = [ [ 3,   5,  13], [ 4,  10,  16], [10,   9,   5] ];
+
+    // Raven magic aura tint
+    const MAGIC    = [ [139, 92, 246], [20, 184, 166], [245, 158,  11] ];
+
+    // Scroll-accent: rune labels, dividers, eyebrow text
+    const ACCENT   = [ [147, 197, 253], [94, 234, 212], [251, 191,  36] ];
+
+    // ── RAF-throttled scroll handler ──────────────────────────
+    let ticking = false;
+    let prevT   = -1;
+
+    function onScroll() {
+      if (!ticking) {
+        requestAnimationFrame(updateWorld);
+        ticking = true;
+      }
+    }
+
+    function updateWorld() {
+      ticking = false;
+
+      const scrollMax = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollMax <= 0) return;
+
+      const raw = Math.min(1, Math.max(0, window.scrollY / scrollMax));
+      const t   = smoothstep(raw);
+
+      // Skip if change is negligible (saves style recalc)
+      if (Math.abs(t - prevT) < 0.0008) return;
+      prevT = t;
+
+      // ── 1. World sky gradient ─────────────────────────────
+      const top = tri(SKY_TOP[0], SKY_TOP[1], SKY_TOP[2], t);
+      const mid = tri(SKY_MID[0], SKY_MID[1], SKY_MID[2], t);
+      const bot = tri(SKY_BOT[0], SKY_BOT[1], SKY_BOT[2], t);
+
+      worldSky.style.background =
+        `radial-gradient(ellipse 140% 75% at 50% -5%,` +
+        ` ${rgb(top)} 0%, ${rgb(mid)} 42%, ${rgb(bot)} 100%)`;
+
+      // ── 2. Star field fades at dawn ───────────────────────
+      const starOpacity = Math.max(0, 1 - t * 2.8);
+      starfield.style.opacity = starOpacity.toFixed(3);
+
+      // ── 3. Aurora veil — peaks mid-dawn ──────────────────
+      // Bell curve centred on t=0.45
+      const auroraPeak = Math.max(0, 1 - Math.abs(t - 0.45) * 2.6);
+      auroraVeil.style.opacity = (auroraPeak * 0.9).toFixed(3);
+
+      // ── 4. Raven magic aura ───────────────────────────────
+      const magicColor = tri(MAGIC[0], MAGIC[1], MAGIC[2], t);
+      // Strongest at night (violet), softer once day arrives
+      const magicStr   = t < 0.5 ? lerp(0.28, 0.14, t * 2) : lerp(0.14, 0.08, (t - 0.5) * 2);
+      ravenMagic.style.background =
+        `radial-gradient(circle, ` +
+        `${rgba(magicColor, (magicStr).toFixed(3))} 0%, ` +
+        `${rgba(magicColor, (magicStr * 0.3).toFixed(3))} 45%, ` +
+        `transparent 72%)`;
+
+      // ── 5. CSS accent var — runes, dividers, labels ───────
+      const accent = tri(ACCENT[0], ACCENT[1], ACCENT[2], t);
+      root.style.setProperty('--scroll-accent', rgb(accent));
+
+      // ── 6. Day-mode green on products section ─────────────
+      if (products) products.classList.toggle('day-green', t > 0.74);
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    updateWorld(); // seed initial state on load
   </script>
 </body>
 </html>
