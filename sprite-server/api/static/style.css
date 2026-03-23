@@ -147,6 +147,11 @@ button:not(:disabled):active { transform: scale(0.97); }
   color: var(--text);
 }
 
+#btn-download {
+  background: var(--success);
+  color: #fff;
+}
+
 #btn-publish {
   background: var(--accent);
   color: #fff;

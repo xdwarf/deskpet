@@ -9,6 +9,7 @@ const manifestBadge = document.getElementById("manifest-badge");
 const fileInput     = document.getElementById("file-input");
 const previewImg    = document.getElementById("preview-img");
 const btnPreview    = document.getElementById("btn-preview");
+const btnDownload   = document.getElementById("btn-download");
 const btnPublish    = document.getElementById("btn-publish");
 const resultBox     = document.getElementById("result-box");
 const publishForm   = document.getElementById("publish-form");
@@ -66,6 +67,7 @@ fileInput.addEventListener("change", () => {
 
   btnPreview.disabled = false;
   btnPublish.disabled = false;
+  btnDownload.hidden  = true;  // new file selected — previous download no longer relevant
   hideResult();
 
   const url = URL.createObjectURL(file);
@@ -112,6 +114,7 @@ publishForm.addEventListener("submit", async (e) => {
   if (!file || !character || !expression) return;
 
   btnPublish.disabled = true;
+  btnDownload.hidden  = true;
   showResult("info", "Publishing…");
 
   const fd = new FormData();
@@ -130,6 +133,12 @@ publishForm.addEventListener("submit", async (e) => {
       `Size:       ${(data.sprite_bytes / 1024).toFixed(1)} KB\n` +
       `Manifest:   v${data.manifest_version}`
     );
+
+    // Show the Download button pointing at the file we just published
+    btnDownload.hidden = false;
+    btnDownload.onclick = () => {
+      window.location.href = `${API}/download/${encodeURIComponent(data.character)}/${encodeURIComponent(data.expression)}`;
+    };
 
     await Promise.all([loadManifest(), loadLibrary()]);
   } catch (e) {

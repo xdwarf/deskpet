@@ -2,11 +2,12 @@
 main.py — DeskPet sprite server API.
 
 Routes:
-  GET  /                  → serve the web UI (index.html)
-  GET  /manifest          → return current manifest.json as JSON
-  GET  /published         → list all published characters and their expressions
-  POST /convert           → upload GIF/PNG, returns preview info + frame count
-  POST /publish           → upload GIF/PNG, convert, save .sprite, bump manifest
+  GET  /                              → serve the web UI (index.html)
+  GET  /manifest                      → return current manifest.json as JSON
+  GET  /published                     → list all published characters and their expressions
+  POST /convert                       → upload GIF/PNG, returns preview info + frame count
+  POST /publish                       → upload GIF/PNG, convert, save .sprite, bump manifest
+  GET  /download/{character}/{expression} → download a published .sprite file
 """
 
 import os
@@ -139,3 +140,27 @@ async def publish(
         "path":       str(out_path.relative_to(SPRITES_DIR)),
         "manifest_version": updated_manifest["version"],
     }
+
+
+# ---------------------------------------------------------------------------
+# Download a published sprite file
+# ---------------------------------------------------------------------------
+
+@app.get("/download/{character}/{expression}")
+def download_sprite(character: str, expression: str):
+    """
+    Serve a published .sprite file as a browser download.
+    Sets Content-Disposition: attachment so the browser saves the file
+    with the correct name (e.g. neutral.sprite) rather than opening it.
+    """
+    path = SPRITES_DIR / character / f"{expression}.sprite"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"{character}/{expression}.sprite not found",
+        )
+    return FileResponse(
+        str(path),
+        media_type="application/octet-stream",
+        filename=f"{expression}.sprite",
+    )
