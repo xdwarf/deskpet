@@ -1,0 +1,9 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: muni-website
+    ports:
+      - "3500:80"
+    volumes:
+      - ./www:/usr/share/nginx/html:ro
+    restart: unless-stopped

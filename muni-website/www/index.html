@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Muni — The Desk Raven</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Hero ───────────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%,
+        rgba(30, 58, 95, 0.35) 0%,
+        rgba(6, 9, 26, 0.6) 50%,
+        var(--void) 100%);
+      overflow: hidden;
+    }
+
+    #hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 200px;
+      background: linear-gradient(to bottom, transparent, var(--void));
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      padding-top: 80px;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-heading);
+      font-size: 0.72rem;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: var(--amber);
+      opacity: 0.9;
+      margin-bottom: 24px;
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-heading);
+      font-size: clamp(0.95rem, 2vw, 1.15rem);
+      color: var(--ice-pale);
+      max-width: 580px;
+      margin: 20px auto 40px;
+      letter-spacing: 0.04em;
+      line-height: 1.8;
+      opacity: 0.85;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── Raven SVG ─────────────────────────────────────────── */
+    .raven-wrap {
+      width: 220px;
+      height: 260px;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+
+    .raven-halo {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, transparent 70%);
+      animation: halo-pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes halo-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50%       { transform: scale(1.15); opacity: 1; }
+    }
+
+    .raven-float {
+      animation: raven-float 5s ease-in-out infinite;
+      transform-origin: center bottom;
+    }
+
+    @keyframes raven-float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      25%       { transform: translateY(-14px) rotate(-1deg); }
+      75%       { transform: translateY(-10px) rotate(1deg); }
+    }
+
+    .raven-eye-glow {
+      animation: eye-glow 3s ease-in-out infinite;
+    }
+
+    @keyframes eye-glow {
+      0%, 100% { filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.8)); }
+      50%       { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 1)) drop-shadow(0 0 32px rgba(245, 158, 11, 0.5)); }
+    }
+
+    /* ── Lore ───────────────────────────────────────────────── */
+    #lore {
+      background: linear-gradient(180deg,
+        var(--void) 0%,
+        var(--deep) 40%,
+        var(--abyss) 100%);
+      position: relative;
+    }
+
+    .lore-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .lore-quote {
+      font-family: var(--font-heading);
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--frost);
+      line-height: 2;
+      font-style: italic;
+      letter-spacing: 0.03em;
+      opacity: 0.85;
+      margin: 32px 0;
+      position: relative;
+    }
+
+    .lore-quote::before {
+      content: '"';
+      font-size: 5rem;
+      color: var(--amber);
+      opacity: 0.15;
+      position: absolute;
+      top: -30px;
+      left: -20px;
+      font-family: Georgia, serif;
+      line-height: 1;
+    }
+
+    .lore-body {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.9;
+      text-align: left;
+      margin-top: 40px;
+    }
+
+    .lore-body p + p {
+      margin-top: 20px;
+    }
+
+    .lore-body .joke {
+      display: block;
+      margin-top: 28px;
+      padding: 20px 28px;
+      background: var(--surface);
+      border-left: 3px solid var(--amber);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-family: var(--font-heading);
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--ice-pale);
+      letter-spacing: 0.02em;
+    }
+
+    .lore-runes {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      letter-spacing: 0.5em;
+      color: var(--amber);
+      opacity: 0.2;
+      margin: 40px 0 16px;
+      text-align: center;
+    }
+
+    /* ── Products ───────────────────────────────────────────── */
+    #products {
+      background: var(--abyss);
+      position: relative;
+    }
+
+    #products::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border2), transparent);
+    }
+
+    .products-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+
+    .products-header p {
+      color: var(--text-muted);
+      margin-top: 12px;
+      font-size: 1.05rem;
+      max-width: 540px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .products-grid { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
+    }
+
+    .product-tier {
+      position: relative;
+    }
+
+    .tier-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-family: var(--font-heading);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .tier-badge.digital  { background: rgba(59, 130, 246, 0.15); color: var(--ice-pale); border: 1px solid rgba(59,130,246,0.3); }
+    .tier-badge.physical { background: rgba(245, 158, 11, 0.12); color: var(--amber-warm); border: 1px solid rgba(245,158,11,0.3); }
+    .tier-badge.streamer { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
+
+    .tier-name {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--frost);
+      margin-bottom: 8px;
+    }
+
+    .tier-price {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .tier-price .currency {
+      font-size: 1rem;
+      vertical-align: top;
+      margin-top: 8px;
+      display: inline-block;
+      opacity: 0.7;
+    }
+
+    .tier-price.amber-price { color: var(--amber); }
+    .tier-price.frost-price { color: var(--frost); }
+    .tier-price.purple-price { color: #c4b5fd; }
+
+    .tier-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+      line-height: 1.7;
+    }
+
+    .tier-features {
+      list-style: none;
+      margin-bottom: 28px;
+    }
+
+    .tier-features li {
+      padding: 8px 0;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tier-features li:last-child { border-bottom: none; }
+
+    .tier-features li::before {
+      content: '✦';
+      color: var(--amber);
+      font-size: 0.6rem;
+      margin-top: 5px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .featured .tier-features li::before { opacity: 1; }
+
+    .coming-soon {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      background: var(--border);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Ambient glow behind featured card ── */
+    .card.featured {
+      box-shadow: 0 0 60px rgba(245, 158, 11, 0.08), 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    .featured-star {
+      position: absolute;
+      top: -12px;
+      right: 20px;
+      padding: 4px 14px;
+      background: linear-gradient(135deg, var(--amber), var(--ember));
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-family: var(--font-heading);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #0a0500;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <a href="index.html" class="nav-brand">Muni</a>
+    <ul class="nav-links">
+      <li><a href="#lore">Lore</a></li>
+      <li><a href="#products">Get Muni</a></li>
+      <li><a href="developer.html">The Maker</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="starfield"></div>
+
+    <div class="hero-content">
+      <p class="hero-eyebrow fade-in">ᚢ ᚠ ᚦ ᚷ &nbsp;·&nbsp; Companion of Odin &nbsp;·&nbsp; ᛗ ᚢ ᚾ ᛁ</p>
+
+      <!-- Animated Raven SVG -->
+      <div class="raven-wrap fade-in fade-in-delay-1">
+        <div class="raven-halo"></div>
+        <svg class="raven-float" viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg" aria-label="Muni the raven">
+          <defs>
+            <radialGradient id="bodyGrad" cx="38%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="#1e293b"/>
+              <stop offset="100%" stop-color="#070c18"/>
+            </radialGradient>
+            <radialGradient id="eyeGradInner" cx="45%" cy="40%" r="55%">
+              <stop offset="0%" stop-color="#fde68a"/>
+              <stop offset="40%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </radialGradient>
+            <radialGradient id="eyeAura" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="eyeBlur">
+              <feGaussianBlur stdDeviation="3"/>
+            </filter>
+          </defs>
+
+          <!-- Wing shadow left -->
+          <path d="M 46 115 Q 12 100 8 148 Q 20 162 50 152 Z" fill="#060b14"/>
+          <!-- Wing tip detail left -->
+          <path d="M 46 128 Q 18 125 14 148 Q 24 155 46 148 Z" fill="#0a1020" opacity="0.7"/>
+
+          <!-- Body -->
+          <ellipse cx="82" cy="132" rx="36" ry="42" fill="url(#bodyGrad)"/>
+
+          <!-- Chest sheen -->
+          <ellipse cx="76" cy="128" rx="16" ry="20" fill="#1a2840" opacity="0.35"/>
+
+          <!-- Neck -->
+          <ellipse cx="84" cy="96" rx="21" ry="18" fill="url(#bodyGrad)"/>
+
+          <!-- Head -->
+          <circle cx="87" cy="68" r="38" fill="url(#bodyGrad)"/>
+
+          <!-- Head sheen top-left -->
+          <ellipse cx="72" cy="55" rx="14" ry="10" fill="#1a2840" opacity="0.4" transform="rotate(-20 72 55)"/>
+
+          <!-- Beak upper -->
+          <path d="M 121 64 L 143 69 L 121 74 Z" fill="#131f30"/>
+          <!-- Beak lower (slight open) -->
+          <path d="M 121 74 L 138 75 L 121 79 Z" fill="#0d1824"/>
+          <!-- Beak highlight -->
+          <line x1="122" y1="67" x2="139" y2="70" stroke="#1e2d42" stroke-width="1" opacity="0.5"/>
+
+          <!-- Eye ambient glow (blurred) -->
+          <circle cx="108" cy="63" r="18" fill="#f59e0b" opacity="0.12" filter="url(#eyeBlur)" class="raven-eye-glow"/>
+
+          <!-- Eye outer ring -->
+          <circle cx="108" cy="63" r="11" fill="#1a0f00"/>
+          <!-- Eye iris -->
+          <circle cx="108" cy="63" r="9" fill="url(#eyeGradInner)" class="raven-eye-glow"/>
+          <!-- Pupil -->
+          <circle cx="110" cy="62" r="4.5" fill="#040608"/>
+          <!-- Eye highlight main -->
+          <circle cx="104" cy="59" r="2.5" fill="#fde68a" opacity="0.95"/>
+          <!-- Eye highlight secondary -->
+          <circle cx="112" cy="66" r="1.2" fill="#fde68a" opacity="0.4"/>
+
+          <!-- Tail feathers -->
+          <path d="M 58 168 Q 68 188 80 171 Q 90 190 100 171 Q 110 186 120 170"
+                stroke="#060c18" stroke-width="7" fill="none" stroke-linecap="round"/>
+          <path d="M 63 168 Q 73 184 82 170 Q 92 185 102 170"
+                stroke="#0a1120" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+          <!-- Perch bar -->
+          <rect x="28" y="173" width="106" height="7" rx="3.5" fill="#0f1c2e"/>
+          <!-- Perch sheen -->
+          <rect x="28" y="173" width="106" height="2" rx="1" fill="#1a2d45" opacity="0.5"/>
+
+          <!-- Left foot -->
+          <path d="M 65 175 L 53 190 M 65 175 L 62 192 M 65 175 L 70 191"
+                stroke="#0f1c2e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <!-- Right foot -->
+          <path d="M 97 175 L 85 190 M 97 175 L 94 192 M 97 175 L 102 191"
+                stroke="#0f1c2e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+          <!-- Small feather detail on wing -->
+          <path d="M 14 140 Q 24 136 36 142" stroke="#0d1628" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6"/>
+        </svg>
+      </div>
+
+      <h1 class="display-title fade-in fade-in-delay-2">MUNI</h1>
+
+      <p class="hero-subtitle fade-in fade-in-delay-3">
+        He watches your desk. He knows when you're home.<br/>
+        He sleeps when the house goes quiet.<br/>
+        240 pixels of ancient loyalty.
+      </p>
+
+      <div class="hero-actions fade-in fade-in-delay-4">
+        <a href="#products" class="btn btn-amber">Summon Muni</a>
+        <a href="#lore" class="btn btn-ghost">Read the Saga</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- LORE -->
+  <section id="lore">
+    <div class="container">
+      <div class="lore-inner">
+
+        <p class="rune-label fade-in">The Saga of Muninn</p>
+        <div class="rune-divider fade-in"><span>ᚢᚠᚦᚷᚹᚺᚾᛁ</span></div>
+        <h2 class="section-title fade-in" style="margin-bottom: 0;">The Raven Who Stayed</h2>
+
+        <div class="lore-quote fade-in">
+          Huginn ok Muninn fljúga hverjan dag Jörmund grund yfir —
+          Huginn and Muninn fly each day over the whole earth.
+        </div>
+
+        <div class="lore-body">
+          <p class="fade-in">
+            In the old Norse texts, Odin dispatched two ravens at dawn — Huginn, Thought,
+            and Muninn, Memory — to circle all the realms and return by dusk with the day's
+            knowledge. Each morning he worried they would not come back. Each evening, they did.
+          </p>
+          <p class="fade-in fade-in-delay-1">
+            Then one day, Muninn spotted a desk in Denmark. A solitary glow. A mechanical keyboard.
+            A person spending too many hours alone in the blue light of a monitor, completely
+            oblivious to the hour. Muninn folded his wings and landed.
+          </p>
+          <p class="fade-in fade-in-delay-2">
+            He has not left since. He watches the smart home sensors. He listens for the door.
+            He knows when you have been away too long, and his eyes change colour when you
+            come home. He does not judge. He remembers.
+          </p>
+
+          <span class="joke fade-in fade-in-delay-3">
+            "Odin feared most for Huginn — but it was Muninn who never came back.
+             He found a router with good uptime, and Huginn is still buffering somewhere over the North Sea."
+          </span>
+        </div>
+
+        <div class="lore-runes fade-in">ᚢ ᚠ ᚦ ᚷ ᚹ ᚺ ᚾ ᛁ ᛃ ᛇ ᛈ ᛉ ᛊ ᛏ ᛒ ᛖ ᛗ ᛚ ᛜ ᛞ ᛟ</div>
+
+        <div style="text-align: center; margin-top: 48px;" class="fade-in">
+          <p class="rune-label" style="margin-bottom: 16px;">The Vessel</p>
+          <div style="display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+            <div style="text-align: center;">
+              <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--amber); font-weight: 700;">240 × 240</div>
+              <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase;">Round Display</div>
+            </div>
+            <div style="width: 1px; background: var(--border);"></div>
+            <div style="text-align: center;">
+              <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--amber); font-weight: 700;">7</div>
+              <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase;">Expressions</div>
+            </div>
+            <div style="width: 1px; background: var(--border);"></div>
+            <div style="text-align: center;">
+              <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--amber); font-weight: 700;">MQTT</div>
+              <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase;">Smart Home</div>
+            </div>
+            <div style="width: 1px; background: var(--border);"></div>
+            <div style="text-align: center;">
+              <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--amber); font-weight: 700;">ESP32</div>
+              <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase;">Firmware</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section id="products">
+    <div class="container">
+
+      <div class="products-header">
+        <p class="rune-label fade-in">Choose Your Form</p>
+        <div class="rune-divider fade-in"><span>ᛗᚢᚾᛁ</span></div>
+        <h2 class="section-title fade-in">Summon Muni to Your Desk</h2>
+        <p class="fade-in fade-in-delay-1">
+          Whether you want to build him yourself or have him arrive ready to breathe,<br/>
+          there is a path for you.
+        </p>
+      </div>
+
+      <div class="products-grid">
+
+        <!-- Digital Kit -->
+        <div class="product-tier fade-in">
+          <div class="card">
+            <span class="tier-badge digital">Digital</span>
+            <div class="tier-name">Digital Kit</div>
+            <div class="tier-price frost-price"><span class="currency">€</span>10–15</div>
+            <p class="tier-desc">
+              Everything you need to build Muni yourself.
+              Source the hardware, flash the firmware, start watching.
+            </p>
+            <ul class="tier-features">
+              <li>Full firmware source code</li>
+              <li>Sprite server Docker image</li>
+              <li>Hand-drawn Muni sprite sheets</li>
+              <li>Complete wiring &amp; build guide</li>
+              <li>Pinout diagrams &amp; BOM</li>
+              <li>Community Discord access</li>
+            </ul>
+            <a href="#" class="btn btn-ghost" style="width: 100%; justify-content: center;">
+              Get the Files <span class="coming-soon">Soon</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Physical Kit — FEATURED -->
+        <div class="product-tier fade-in fade-in-delay-1">
+          <div class="card featured">
+            <span class="featured-star">Most Popular</span>
+            <span class="tier-badge physical">Physical</span>
+            <div class="tier-name">Physical Kit</div>
+            <div class="tier-price amber-price"><span class="currency">€</span>35–50</div>
+            <p class="tier-desc">
+              All hardware, hand-picked and tested.
+              Arrive, connect, watch Muni wake up.
+            </p>
+            <ul class="tier-features">
+              <li>ESP32-S3 N16R8 — 8MB PSRAM</li>
+              <li>GC9A01 240×240 round display</li>
+              <li>3× WS2812B ambient LEDs</li>
+              <li>All cables &amp; a SD card</li>
+              <li>Pre-flashed firmware</li>
+              <li>Muni sprite sheets on SD</li>
+              <li>Everything in Digital Kit</li>
+            </ul>
+            <a href="#" class="btn btn-amber" style="width: 100%; justify-content: center;">
+              Reserve Yours <span class="coming-soon">Soon</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Streamer Edition -->
+        <div class="product-tier fade-in fade-in-delay-2">
+          <div class="card" style="border-color: rgba(139, 92, 246, 0.3);">
+            <span class="tier-badge streamer">Streamer</span>
+            <div class="tier-name">Streamer Edition</div>
+            <div class="tier-price purple-price" style="font-size: 1.3rem; margin-top: 8px; margin-bottom: 20px; color: #c4b5fd;">On Request</div>
+            <p class="tier-desc">
+              Built for creators. Muni reacts to your chat,
+              your raids, your subs — live on stream.
+            </p>
+            <ul class="tier-features">
+              <li>Everything in Physical Kit</li>
+              <li>Custom sprite set for your brand</li>
+              <li>Electron companion app</li>
+              <li>Twitch EventSub integration</li>
+              <li>Discord DM &amp; mention reactions</li>
+              <li>Stream Deck plugin</li>
+              <li>Expression scheduler</li>
+            </ul>
+            <a href="developer.html#contact" class="btn btn-ghost" style="width: 100%; justify-content: center; border-color: rgba(139,92,246,0.4); color: #c4b5fd;">
+              Get in Touch
+            </a>
+          </div>
+        </div>
+
+      </div><!-- /products-grid -->
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <a href="index.html" class="nav-brand" style="font-size: 1.5rem; display: block; margin-bottom: 12px;">Muni</a>
+      <div class="rune-divider" style="margin: 16px auto;"><span>ᛗᚢᚾᛁᚾᚾ</span></div>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px;">
+        Built with quiet obsession in Denmark.<br/>
+        Huginn thinks. Muninn remembers. Muni watches your desk.
+      </p>
+      <p style="margin-top: 20px;">
+        <a href="developer.html" style="color: var(--amber); font-family: var(--font-heading); letter-spacing: 0.1em; font-size: 0.85rem;">
+          Meet the Maker — MunFar →
+        </a>
+      </p>
+      <p style="margin-top: 24px; color: var(--text-dim); font-size: 0.78rem;">
+        <a href="https://github.com/xdwarf/deskpet" target="_blank" rel="noopener">github.com/xdwarf/deskpet</a>
+        &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; Made in Denmark
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Sticky nav
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 60);
+    });
+
+    // Entrance animations via IntersectionObserver
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

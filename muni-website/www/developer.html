@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MunFar — The Maker</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Developer Hero ─────────────────────────────────────── */
+    #hero {
+      min-height: 80vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      background: radial-gradient(ellipse 70% 50% at 50% 40%,
+        rgba(30, 58, 95, 0.3) 0%,
+        rgba(6, 9, 26, 0.6) 55%,
+        var(--void) 100%);
+      overflow: hidden;
+    }
+
+    #hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 160px;
+      background: linear-gradient(to bottom, transparent, var(--void));
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      padding-top: 100px;
+      padding-bottom: 40px;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-heading);
+      font-size: 0.72rem;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: var(--ice-pale);
+      opacity: 0.7;
+      margin-bottom: 20px;
+    }
+
+    .hero-name {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 9vw, 6rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--frost) 0%, var(--ice-pale) 50%, var(--amber-pale) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.1em;
+      margin-bottom: 20px;
+    }
+
+    .hero-tagline {
+      font-family: var(--font-heading);
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      color: var(--text-muted);
+      max-width: 520px;
+      margin: 0 auto 36px;
+      letter-spacing: 0.04em;
+      line-height: 1.8;
+    }
+
+    /* ── Avatar Placeholder ─────────────────────────────────── */
+    .avatar-ring {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      margin: 0 auto 28px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .avatar-ring::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--amber) 0deg,
+        var(--ice) 120deg,
+        var(--amber) 240deg,
+        var(--ice) 360deg
+      );
+      animation: ring-spin 8s linear infinite;
+      z-index: 0;
+    }
+
+    .avatar-ring::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: var(--deep);
+      z-index: 1;
+    }
+
+    @keyframes ring-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    .avatar-inner {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 40% 35%, var(--surface2), var(--abyss));
+    }
+
+    .avatar-inner svg {
+      width: 80px;
+      height: 80px;
+      opacity: 0.8;
+    }
+
+    /* ── About ──────────────────────────────────────────────── */
+    #about {
+      background: linear-gradient(180deg, var(--void) 0%, var(--deep) 100%);
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    @media (max-width: 768px) {
+      .about-grid { grid-template-columns: 1fr; gap: 40px; }
+    }
+
+    .about-text p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.9;
+    }
+
+    .about-text p + p {
+      margin-top: 18px;
+    }
+
+    .about-text .highlight {
+      color: var(--frost);
+      font-family: var(--font-heading);
+      font-style: italic;
+    }
+
+    .about-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .stat-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-3px);
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      color: var(--amber);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* ── Social Links ───────────────────────────────────────── */
+    #social {
+      background: var(--abyss);
+      position: relative;
+    }
+
+    #social::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border2), transparent);
+    }
+
+    .social-header {
+      text-align: center;
+      margin-bottom: 52px;
+    }
+
+    .social-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 700px) {
+      .social-grid { grid-template-columns: 1fr; max-width: 400px; }
+    }
+
+    .social-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px 24px;
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .social-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .social-card.github::before  { background: radial-gradient(ellipse at top, rgba(255,255,255,0.04), transparent); }
+    .social-card.youtube::before { background: radial-gradient(ellipse at top, rgba(255,0,0,0.06), transparent); }
+    .social-card.tiktok::before  { background: radial-gradient(ellipse at top, rgba(0,255,213,0.05), transparent); }
+
+    .social-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .social-card.github:hover  { border-color: rgba(255,255,255,0.2); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .social-card.youtube:hover { border-color: rgba(255,0,0,0.3); box-shadow: 0 20px 60px rgba(255,0,0,0.1); }
+    .social-card.tiktok:hover  { border-color: rgba(0,255,213,0.3); box-shadow: 0 20px 60px rgba(0,255,213,0.08); }
+
+    .social-card:hover::before { opacity: 1; }
+
+    .social-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+    }
+
+    .social-card.github  .social-icon { background: rgba(255,255,255,0.08); }
+    .social-card.youtube .social-icon { background: rgba(255,0,0,0.12); }
+    .social-card.tiktok  .social-icon { background: rgba(0,255,213,0.08); }
+
+    .social-name {
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .social-card.github  .social-name { color: var(--frost); }
+    .social-card.youtube .social-name { color: #ff4e4e; }
+    .social-card.tiktok  .social-name { color: #00ffe0; }
+
+    .social-handle {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      font-family: monospace;
+      letter-spacing: 0.05em;
+    }
+
+    .social-card .coming-soon {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+    }
+
+    /* ── Contact ────────────────────────────────────────────── */
+    #contact {
+      background: linear-gradient(180deg, var(--abyss) 0%, var(--void) 100%);
+      position: relative;
+    }
+
+    #contact::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    .contact-inner {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .contact-header {
+      text-align: center;
+      margin-bottom: 52px;
+    }
+
+    .contact-header p {
+      color: var(--text-muted);
+      margin-top: 12px;
+      font-size: 1rem;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    form {
+      display: grid;
+      gap: 20px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-family: var(--font-heading);
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    textarea,
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--amber);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+    }
+
+    select option {
+      background: var(--surface);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 130px;
+    }
+
+    .form-note {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-top: -4px;
+    }
+
+    .form-submit {
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .form-success {
+      display: none;
+      padding: 16px 20px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 8px;
+      color: var(--success);
+      font-family: var(--font-heading);
+      font-size: 0.9rem;
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    /* ── Back link ──────────────────────────────────────────── */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      font-family: var(--font-heading);
+      text-transform: uppercase;
+      transition: color 0.2s;
+      padding: 20px 40px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .back-link:hover { color: var(--amber); }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <a href="index.html" class="nav-brand">Muni</a>
+    <ul class="nav-links">
+      <li><a href="index.html#lore">Lore</a></li>
+      <li><a href="index.html#products">Get Muni</a></li>
+      <li><a href="developer.html" style="color: var(--amber);">The Maker</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="starfield"></div>
+
+    <div class="hero-content">
+      <div class="avatar-ring fade-in">
+        <div class="avatar-inner">
+          <!-- Viking silhouette placeholder -->
+          <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+            <!-- Head -->
+            <circle cx="40" cy="26" r="14" fill="#1e3a5f"/>
+            <!-- Helmet horns -->
+            <path d="M 22 20 Q 14 8 18 4 Q 22 12 26 16 Z" fill="#2a4a70"/>
+            <path d="M 58 20 Q 66 8 62 4 Q 58 12 54 16 Z" fill="#2a4a70"/>
+            <!-- Helmet rim -->
+            <rect x="22" y="18" width="36" height="5" rx="2" fill="#2a4a70"/>
+            <!-- Body/torso -->
+            <path d="M 24 44 Q 22 62 20 72 L 60 72 Q 58 62 56 44 Q 50 40 40 40 Q 30 40 24 44 Z" fill="#1e3a5f"/>
+            <!-- Beard -->
+            <path d="M 30 34 Q 32 44 40 46 Q 48 44 50 34 Q 44 38 40 38 Q 36 38 30 34 Z" fill="#2a4a70" opacity="0.8"/>
+            <!-- Eyes -->
+            <circle cx="35" cy="26" r="2.5" fill="#f59e0b" opacity="0.9"/>
+            <circle cx="45" cy="26" r="2.5" fill="#f59e0b" opacity="0.9"/>
+            <!-- Eye pupils -->
+            <circle cx="36" cy="26" r="1" fill="#040608"/>
+            <circle cx="46" cy="26" r="1" fill="#040608"/>
+          </svg>
+        </div>
+      </div>
+
+      <p class="hero-eyebrow fade-in fade-in-delay-1">Builder of Muni &nbsp;·&nbsp; Proud Danish Dad &nbsp;·&nbsp; Maker</p>
+      <h1 class="hero-name fade-in fade-in-delay-2">MunFar</h1>
+      <p class="hero-tagline fade-in fade-in-delay-3">
+        I build things with my hands that didn't need to exist.<br/>
+        Then I build the software that makes them feel alive.<br/>
+        Muni is the latest one.
+      </p>
+      <div class="fade-in fade-in-delay-4">
+        <a href="#contact" class="btn btn-amber">Get in Touch</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about">
+    <div class="container">
+      <div class="about-grid">
+
+        <div class="about-text fade-in">
+          <p class="rune-label" style="margin-bottom: 16px;">The Maker</p>
+          <h2 class="section-title" style="margin-bottom: 28px;">Proud Danish Dad.<br/>Viking-Looking Maker.</h2>
+          <p>
+            I'm a dad, a maker, and a developer based in Denmark. I like building things that sit on your desk
+            and make you feel something — a bit of presence, a bit of personality, a tiny creature that knows
+            when you've been away.
+          </p>
+          <p>
+            Muni started as a weekend project. Then the firmware got interesting. Then I ordered a round display.
+            Then I found myself designing Norse sprite sheets at midnight.
+            <span class="highlight"> That's how it always goes.</span>
+          </p>
+          <p>
+            I share everything openly — firmware, schematics, Docker images, the lot. If you want to build one
+            yourself, every file you need is on GitHub. If you want one that just works, I'll sort you out.
+          </p>
+          <div style="margin-top: 32px;">
+            <a href="index.html#products" class="btn btn-ghost">See the Kits</a>
+          </div>
+        </div>
+
+        <div class="about-stats fade-in fade-in-delay-2">
+          <div class="stat-card">
+            <span class="stat-value">ESP32</span>
+            <span class="stat-label">Microcontroller</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">7</span>
+            <span class="stat-label">Expressions</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">DK</span>
+            <span class="stat-label">Built in Denmark</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">∞</span>
+            <span class="stat-label">Weekend Projects</span>
+          </div>
+          <div class="stat-card" style="grid-column: span 2;">
+            <span class="stat-value" style="font-size: 1.1rem; letter-spacing: 0.06em;">Open Source</span>
+            <span class="stat-label">Everything on GitHub</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section id="social">
+    <div class="container">
+
+      <div class="social-header">
+        <p class="rune-label fade-in">Find Me</p>
+        <div class="rune-divider fade-in"><span>ᛗᚢᚾᚠᚨᚱ</span></div>
+        <h2 class="section-title fade-in">Around the Nine Realms</h2>
+      </div>
+
+      <div class="social-grid">
+
+        <a href="https://github.com/xdwarf" target="_blank" rel="noopener"
+           class="social-card github fade-in">
+          <div class="social-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style="color: #e2e8f0;">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+          </div>
+          <span class="social-name">GitHub</span>
+          <span class="social-handle">@xdwarf</span>
+        </a>
+
+        <a href="#" class="social-card youtube fade-in fade-in-delay-1" onclick="return false;">
+          <span class="coming-soon">Soon</span>
+          <div class="social-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style="color: #ff4e4e;">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+          </div>
+          <span class="social-name">YouTube</span>
+          <span class="social-handle">Build videos, coming soon</span>
+        </a>
+
+        <a href="#" class="social-card tiktok fade-in fade-in-delay-2" onclick="return false;">
+          <span class="coming-soon">Soon</span>
+          <div class="social-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" style="color: #00ffe0;">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/>
+            </svg>
+          </div>
+          <span class="social-name">TikTok</span>
+          <span class="social-handle">Short builds, coming soon</span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="container">
+      <div class="contact-inner">
+
+        <div class="contact-header">
+          <p class="rune-label fade-in">Send a Raven</p>
+          <div class="rune-divider fade-in"><span>ᚠᚢᚦ</span></div>
+          <h2 class="section-title fade-in">Get in Touch</h2>
+          <p class="fade-in fade-in-delay-1">
+            Want a custom Streamer Edition? Interested in stocking Muni?
+            Found a bug, or just want to say hi?
+          </p>
+        </div>
+
+        <form id="contact-form" class="fade-in fade-in-delay-2" onsubmit="handleSubmit(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Your Name</label>
+              <input type="text" id="name" name="name" placeholder="Name or handle" required />
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" placeholder="you@somewhere.com" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="subject">About</label>
+            <select id="subject" name="subject">
+              <option value="">Select a topic...</option>
+              <option value="streamer">Streamer Edition inquiry</option>
+              <option value="retail">Stocking / wholesale</option>
+              <option value="build">Build help / firmware</option>
+              <option value="collab">Collaboration</option>
+              <option value="other">Something else entirely</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="message">Message</label>
+            <textarea id="message" name="message" placeholder="Tell Muni what you need..." required></textarea>
+          </div>
+
+          <p class="form-note">No backend yet — this is a static prototype. Message will open your mail client.</p>
+
+          <div class="form-submit">
+            <button type="submit" class="btn btn-amber">Send the Raven</button>
+          </div>
+        </form>
+
+        <div class="form-success" id="form-success">
+          ✦ &nbsp; Your raven is en route. I'll reply when it lands.
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <a href="index.html" class="nav-brand" style="font-size: 1.5rem; display: block; margin-bottom: 12px;">Muni</a>
+      <div class="rune-divider" style="margin: 16px auto;"><span>ᛗᚢᚾᛁᚾᚾ</span></div>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px;">
+        MunFar &nbsp;·&nbsp; Proud Danish Dad &nbsp;·&nbsp; Builder of Muni
+      </p>
+      <p style="margin-top: 20px;">
+        <a href="index.html" style="color: var(--ice-pale); font-family: var(--font-heading); letter-spacing: 0.1em; font-size: 0.85rem;">
+          ← Back to Muni
+        </a>
+      </p>
+      <p style="margin-top: 24px; color: var(--text-dim); font-size: 0.78rem;">
+        <a href="https://github.com/xdwarf" target="_blank" rel="noopener">github.com/xdwarf</a>
+        &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; Made in Denmark
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Sticky nav
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 60);
+    });
+
+    // Entrance animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Contact form — static site, open mailto
+    function handleSubmit(e) {
+      e.preventDefault();
+      const name    = document.getElementById('name').value;
+      const email   = document.getElementById('email').value;
+      const subject = document.getElementById('subject').value || 'Muni inquiry';
+      const message = document.getElementById('message').value;
+
+      const mailto = `mailto:muni@xdwarf.dev?subject=${encodeURIComponent('[Muni] ' + subject)}&body=${encodeURIComponent('From: ' + name + ' <' + email + '>\n\n' + message)}`;
+      window.location.href = mailto;
+
+      document.getElementById('contact-form').style.display = 'none';
+      const success = document.getElementById('form-success');
+      success.style.display = 'block';
+
+      setTimeout(() => {
+        success.style.display = 'none';
+        document.getElementById('contact-form').style.display = 'grid';
+        document.getElementById('contact-form').reset();
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
