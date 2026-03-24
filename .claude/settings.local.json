@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv deskpet/.git .)",
+      "Bash(mv deskpet/.gitignore .)",
+      "Bash(mv deskpet/README.md .)",
+      "Bash(mv deskpet/firmware .)",
+      "Bash(mv deskpet/simulator .)"
+    ]
+  }
+}

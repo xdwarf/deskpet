@@ -8,10 +8,12 @@ Routes:
   POST /convert                       → upload GIF/PNG, returns preview info + frame count
   POST /publish                       → upload GIF/PNG, convert, save .sprite, bump manifest
   GET  /download/{character}/{expression} → download a published .sprite file
+  POST /convert-mp4                   → upload MP4, returns a 240x240 GIF download
 """
 
 import os
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -107,11 +109,6 @@ async def publish(
     character: str   = Form(...),
     expression: str  = Form(...),
 ):
-    """
-    Convert and publish a sprite.
-    Saves to /sprites/{character}/{expression}.sprite and bumps manifest version.
-    """
-    # Basic validation
     character  = character.strip().lower()
     expression = expression.strip().lower()
     if not character or not expression:
@@ -123,13 +120,11 @@ async def publish(
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    # Write sprite file
     out_dir  = SPRITES_DIR / character
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{expression}.sprite"
     out_path.write_bytes(sprite_bytes)
 
-    # Update manifest
     updated_manifest = manifest_mod.publish(character, expression)
 
     return {
@@ -148,11 +143,6 @@ async def publish(
 
 @app.get("/download/{character}/{expression}")
 def download_sprite(character: str, expression: str):
-    """
-    Serve a published .sprite file as a browser download.
-    Sets Content-Disposition: attachment so the browser saves the file
-    with the correct name (e.g. neutral.sprite) rather than opening it.
-    """
     path = SPRITES_DIR / character / f"{expression}.sprite"
     if not path.exists():
         raise HTTPException(
@@ -163,4 +153,70 @@ def download_sprite(character: str, expression: str):
         str(path),
         media_type="application/octet-stream",
         filename=f"{expression}.sprite",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Convert MP4 → GIF
+# ---------------------------------------------------------------------------
+
+@app.post("/convert-mp4")
+async def convert_mp4(
+    file: UploadFile = File(...),
+    fps: int = Form(12),
+):
+    """
+    Upload an MP4, get back a 240x240 high-quality GIF.
+    fps options: 8, 12, 24
+    """
+    if fps not in (8, 12, 24):
+        raise HTTPException(status_code=422, detail="fps must be 8, 12, or 24")
+
+    if not file.filename.lower().endswith(".mp4"):
+        raise HTTPException(status_code=422, detail="Only MP4 files are accepted")
+
+    data = await file.read()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        mp4_path  = Path(tmp) / "input.mp4"
+        palette_path = Path(tmp) / "palette.png"
+        gif_path  = Path(tmp) / "output.gif"
+
+        mp4_path.write_bytes(data)
+
+        # Step 1 — generate optimised palette for best colour quality
+        palette_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(mp4_path),
+            "-vf", f"fps={fps},scale=240:240:flags=lanczos,palettegen=stats_mode=diff",
+            str(palette_path)
+        ]
+        result = subprocess.run(palette_cmd, capture_output=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="FFmpeg palette generation failed: " + result.stderr.decode())
+
+        # Step 2 — render GIF using palette (high quality dithering)
+        gif_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(mp4_path),
+            "-i", str(palette_path),
+            "-lavfi", f"fps={fps},scale=240:240:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
+            str(gif_path)
+        ]
+        result = subprocess.run(gif_cmd, capture_output=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="FFmpeg GIF conversion failed: " + result.stderr.decode())
+
+        gif_bytes = gif_path.read_bytes()
+
+    # Return GIF as download
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".gif") as out:
+        out.write(gif_bytes)
+        out_path = out.name
+
+    original_name = Path(file.filename).stem
+    return FileResponse(
+        out_path,
+        media_type="image/gif",
+        filename=f"{original_name}_{fps}fps_240x240.gif",
     )

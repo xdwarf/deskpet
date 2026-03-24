@@ -1,8 +1,10 @@
-# DeskPet
+# DeskPet — Muni
 
-> Muni (Muninn) — Odin's raven, rendered in chibi Norse/Viking style, watching over your desk.
+> Muninn, Odin's raven, rendered in chibi Norse/Viking style. Watching over your desk.
 
-Muni is a small animated raven who lives on a round 240×240 display and reacts to your smart home via MQTT. Happy when you arrive home, sleepy when everyone's in bed, surprised when a door opens. Drawn in a chibi Viking style — round head, tiny wings, a hint of runic mischief. Runs entirely on an ESP32-C3 SuperMini.
+Muni lives on a round 240×240 display and reacts to your smart home, your streams, and your life. Happy when you arrive home. Sleepy when everyone's in bed. Surprised when a door opens. Each expression plays through a hand-drawn sprite animation, then he returns to his calm idle loop. Runs on an ESP32-C3 SuperMini — an ESP32-S3 N16R8 upgrade is in the post.
+
+**GitHub:** [github.com/xdwarf/deskpet](https://github.com/xdwarf/deskpet)
 
 ---
 
@@ -10,24 +12,29 @@ Muni is a small animated raven who lives on a round 240×240 display and reacts 
 
 ```
 deskpet/
-├── firmware/            # ESP32-C3 PlatformIO project (C++ / Arduino)
+├── firmware/                    # PlatformIO project (C++ / Arduino framework)
 │   ├── src/
 │   │   ├── main.cpp
 │   │   ├── display.cpp/.h       # LovyanGFX display driver wrapper
-│   │   ├── expressions.cpp/.h   # Programmatic face animations
-│   │   ├── wifi_manager.cpp/.h  # WiFi connection + reconnect
+│   │   ├── expressions.cpp/.h   # Expression state machine + programmatic face
+│   │   ├── sprite_player.cpp/.h # SD card sprite streaming (chunked RGB565)
+│   │   ├── sprite_manager.cpp/.h# SD scan, NVS version cache, download (disabled)
+│   │   ├── wifi_manager.cpp/.h  # WiFi connection + auto-reconnect
 │   │   ├── mqtt_client.cpp/.h   # MQTT subscribe/publish
-│   │   ├── sprite_manager.cpp/.h # NVS version check + LittleFS cache
-│   │   ├── sd_card.cpp/.h       # SD card mount on shared SPI bus
-│   │   └── leds.cpp/.h          # WS2812B breathing effect
+│   │   ├── sd_card.cpp/.h       # SD card init on shared SPI2 bus
+│   │   └── leds.cpp/.h          # WS2812B midnight-blue breathing (NeoPixelBus)
 │   ├── include/
-│   │   ├── config.example.h     # Template — copy to config.h
-│   │   ├── config.h             # Credentials + pin defines (gitignored)
-│   │   └── lgfx_config.h        # LovyanGFX panel + bus configuration
+│   │   ├── config.example.h     # Template — copy to config.h and fill in values
+│   │   ├── config.h             # WiFi/MQTT credentials + pin defines (gitignored)
+│   │   └── lgfx_config.h        # LovyanGFX panel + SPI bus configuration
 │   └── platformio.ini
-├── sprite-server/       # Docker nginx service — serves sprite sheets over HTTP
-├── simulator/           # Python desktop app — simulates the round display on PC
-├── muni.code-workspace  # VS Code multi-root workspace (open this)
+├── sprite-server/               # Docker service — GIF→RGB565 converter + file server
+│   ├── api/                     # FastAPI conversion service (port 8000)
+│   │   └── static/              # Web UI — upload, convert, publish, download
+│   ├── sprites/                 # Served sprite files + manifest.json
+│   └── docker-compose.yaml      # nginx on 8765, api on 8000
+├── simulator/                   # Python/pygame desktop simulator (round display)
+├── muni.code-workspace          # VS Code multi-root workspace — open this
 └── README.md
 ```
 
@@ -35,280 +42,335 @@ deskpet/
 
 ## Hardware
 
-| Component | Role | Notes |
-|---|---|---|
-| ESP32-C3 SuperMini | Main controller | WiFi built-in, tiny form factor |
-| GC9A01 | 240×240 round SPI display | SPI2, 40 MHz |
-| Micro SD card module | Animation frame storage | Shares SPI2 with display |
-| 3× WS2812B LEDs | Ambient light / status | GPIO9, 5V, breathing midnight blue |
+### Current build
 
-**Home server (running at 192.168.2.14):**
+| Component | Part | Notes |
+|---|---|---|
+| Microcontroller | ESP32-C3 SuperMini | Single-core RISC-V, 400 KB SRAM, WiFi, tiny form factor |
+| Display | GC9A01 240×240 round SPI | LovyanGFX driver, 40 MHz, `invert=true`, RGB565 |
+| Storage | Micro SD card module | Shares SPI2 with display; FAT32, up to 32 GB |
+| Ambient LEDs | 3× WS2812B | GPIO9, 5V, NeoPixelBus RMT driver, midnight-blue breathing |
+
+### Ordered — upgrade board
+
+| Component | Part | Notes |
+|---|---|---|
+| Microcontroller | ESP32-S3 N16R8 | Dual-core, 16 MB flash, **8 MB PSRAM** — enables full-frame sprite buffer and faster playback |
+
+When the S3 arrives: swap boards, re-enable `SPRITE_DOWNLOAD_ENABLED`, use PSRAM for a full 115 KB frame buffer, remove the chunked-read workaround.
+
+### Home server (192.168.2.14)
+
 - Mosquitto MQTT broker — port 1883
-- Docker host — runs the sprite server
+- Docker host — sprite server (ports 8000 + 8765)
 
 ---
 
 ## Wiring
 
-### SPI Bus — shared by display and SD card
+### Full pin table
 
-Both the GC9A01 display and the SD card module share SPI2 on the ESP32-C3.
-They use the same SCK and MOSI lines, with separate CS pins and their own MISO on the SD side.
+| Signal | ESP32-C3 GPIO | Connected to |
+|---|---|---|
+| SPI SCK | GPIO 4 | GC9A01 SCL + SD SCK (shared) |
+| SPI MOSI | GPIO 6 | GC9A01 SDA + SD MOSI (shared) |
+| SPI MISO | GPIO 3 | SD MISO only (display is write-only) |
+| Display CS | GPIO 5 | GC9A01 CS |
+| Display DC | GPIO 7 | GC9A01 DC / RS |
+| Display RST | GPIO 8 | GC9A01 RES |
+| Display BL | GPIO 2 | GC9A01 BLK (backlight) |
+| SD CS | GPIO 10 | SD module CS |
+| LED data | GPIO 9 | WS2812B DIN (chain: DOUT → DIN between LEDs) |
+
+### GC9A01 round display — 3.3V
 
 ```
-Signal        ESP32-C3 Pin    Connected to
-─────────────────────────────────────────────────────────────
-SCK           GPIO4           GC9A01 SCL  +  SD SCK
-MOSI          GPIO6           GC9A01 SDA  +  SD MOSI
-MISO          GPIO3           SD MISO only (display is write-only)
-```
-
-### GC9A01 Round Display (3.3V)
-
-```
-GC9A01 Pin    ESP32-C3 Pin    Notes
-──────────────────────────────────────────────────────────────
-VCC           3.3V            Power — NOT 5V
+GC9A01 Pin    ESP32-C3 Pin    Note
+─────────────────────────────────────────────────────
+VCC           3.3V            NOT 5V
 GND           GND
-SCL / SCK     GPIO4           SPI clock (shared)
-SDA / MOSI    GPIO6           SPI data (shared)
-RES / RST     GPIO8           Reset
-DC            GPIO7           Data / Command select
-CS            GPIO5           Chip select (active LOW)
-BLK / BL      GPIO2           Backlight (PWM dimming)
+SCL / SCK     GPIO 4          SPI clock (shared with SD)
+SDA / MOSI    GPIO 6          SPI data  (shared with SD)
+RES           GPIO 8          Reset
+DC            GPIO 7          Data / Command select
+CS            GPIO 5          Chip select
+BLK           GPIO 2          Backlight
 ```
 
-### Micro SD Card Module (3.3V)
+### Micro SD card module — 3.3V
 
 ```
-SD Pin        ESP32-C3 Pin    Notes
-──────────────────────────────────────────────────────────────
-VCC           3.3V            Power — NOT 5V
+SD Pin        ESP32-C3 Pin    Note
+─────────────────────────────────────────────────────
+VCC           3.3V            NOT 5V
 GND           GND
-SCK           GPIO4           SPI clock (shared with display)
-MOSI          GPIO6           SPI data (shared with display)
-MISO          GPIO3           SD reads only
-CS            GPIO10          Chip select — independent
+SCK           GPIO 4          Shared with display
+MOSI          GPIO 6          Shared with display
+MISO          GPIO 3          SD reads only
+CS            GPIO 10         Independent CS
 ```
 
-> Format the SD card as FAT32. Cards up to 32 GB work reliably.
-> Mount result is logged to serial on boot: `[SD] Mounted — type: SDHC, size: NNNN MB`
+Format as FAT32. Up to 32 GB confirmed working.
 
-### WS2812B RGB LEDs (5V)
-
-Three LEDs chained in series. Power from 5V, data signal from GPIO9.
+### WS2812B LEDs — 5V
 
 ```
-LED Pin       ESP32-C3 Pin    Notes
-──────────────────────────────────────────────────────────────
-VCC           5V              WS2812B requires 5V (NOT 3.3V)
+LED Pin       ESP32-C3 Pin    Note
+─────────────────────────────────────────────────────
+VCC           5V              Requires 5V, not 3.3V
 GND           GND
-DIN (first)   GPIO9           Data in — chain the DOUT → DIN between LEDs
+DIN (first)   GPIO 9          300–500 Ω series resistor recommended
 ```
 
-> A 300–500 Ω resistor in series on the data line is recommended to protect
-> against ringing. A 100 µF capacitor across the 5V/GND supply helps with
-> current spikes on power-on.
+Chain DOUT → DIN between each LED. A 100 µF cap across 5V/GND helps with power-on current spikes.
 
 ---
 
-## Getting Started
+## Firmware
 
-### 1. Open the workspace
+### Key decisions
 
-Open `muni.code-workspace` in VS Code (`File → Open Workspace from File…`).
-This gives you two roots: the repo root (for Claude Code and git) and `firmware/`
-(so PlatformIO finds `platformio.ini` directly and shows the build toolbar).
+**LovyanGFX only — not TFT_eSPI.**
+TFT_eSPI uses Arduino's `SPIClass` wrapper which causes a `TG1WDT_SYS_RST` watchdog crash during SPI init on the ESP32-C3. LovyanGFX calls `spi_bus_initialize()` via the ESP-IDF `spi_master` driver directly — no crash, no workaround. Do not switch back.
 
-### 2. Configure credentials
+**NeoPixelBus for LEDs — not FastLED.**
+Both the FastLED RMT and I2S backends trigger a guru meditation panic on boot on ESP32-C3 before any serial output appears. `makuna/NeoPixelBus @ ^2.8` with `NeoEsp32Rmt0Ws2812xMethod` works correctly.
 
-```bash
-cd firmware
-cp include/config.example.h include/config.h
-# Edit config.h — set WIFI_SSID, WIFI_PASSWORD, MQTT_BROKER_IP
-```
+**Shared SPI2 bus.**
+The display and SD card share SPI2 (SCK = GPIO4, MOSI = GPIO6). `bus_shared=true` and `use_lock=true` in `lgfx_config.h` tell LovyanGFX to call `SPI.endTransaction()` after each display transaction, releasing the bus for the SD library. `sdInit()` must be called after `displayInit()` — LovyanGFX registers `SPI2_HOST` inside `tft.init()` and the SD library reuses that registration.
 
-### 3. Flash the firmware
+**SD CS float fix.**
+GPIO10 floats at reset. If the SD module asserts itself on the bus before `sdInit()` runs, it corrupts the display init sequence. `displayInit()` drives GPIO10 HIGH before calling `tft.init()`.
 
-Via PlatformIO toolbar in VS Code, or CLI:
+### Getting started
 
 ```bash
+# 1. Open the workspace (PlatformIO needs firmware/ as a root)
+# File → Open Workspace from File → muni.code-workspace
+
+# 2. Copy and fill in credentials
+cp firmware/include/config.example.h firmware/include/config.h
+# Edit: WIFI_SSID, WIFI_PASSWORD, MQTT_BROKER_IP
+
+# 3. Flash
 cd firmware
 pio run --target upload
 pio device monitor --baud 115200
 ```
 
-Expected serial output on a successful boot:
+Expected serial output on a good boot:
 ```
 === DeskPet booting ===
-[LEDs] Initialised — 3 WS2812B on GPIO9
-[Display] Calling tft.init()...
+[LEDs] Initialised — 3 WS2812B on GPIO9 (NeoPixelBus RMT)
 [Display] Initialised
-[SD] Initialising...
 [SD] Mounted — type: SDHC, size: 15193 MB
-[WiFi] Connecting to SSID: ...
-[WiFi] Connected! IP address: 192.168.x.x
+[Sprites] Cached version: 0.1.2
+[Sprites] SD sprites present: yes
+[Sprites] Download disabled (SPRITE_DOWNLOAD_ENABLED=0) — using SD card files as-is
+[WiFi] Connected! IP: 192.168.x.x
 [MQTT] Connected!
-[Sprites] Fetching manifest...
 === DeskPet ready ===
+[SpritePlayer] Loaded /sprites/muni/neutral.sprite (12 frame(s), looping)
 ```
 
-### 4. Run the simulator (no hardware needed)
+---
+
+## Animation System
+
+### Sprite file format
+
+Each `.sprite` file is a flat binary of concatenated frames with no header:
+
+```
+Frame 0:  240 × 240 × 2 = 115,200 bytes  (raw little-endian RGB565)
+Frame 1:  115,200 bytes
+...
+Frame N:  115,200 bytes
+```
+
+Files live on the SD card at `/sprites/muni/<expression>.sprite`.
+
+### Playback
+
+The sprite player streams frames from SD in 8-row chunks (3,840 bytes at a time) to stay within the ESP32-C3's heap constraints. Each chunk alternates: SD read (SPI2 at 25 MHz) → display push (SPI2 at 40 MHz). With `bus_shared=true` the bus is released between each pair so the two devices never conflict.
+
+Target framerate: **20fps (50ms/frame)**. Actual measured: ~12–16fps on C3 due to 30 SPI bus hand-offs per frame. On the S3 with PSRAM the full frame can be buffered in one read, eliminating the hand-off overhead.
+
+### Expression behaviour
+
+| Expression | Playback mode |
+|---|---|
+| `neutral` | Loops continuously — permanent idle |
+| All others | Plays once through to the last frame, then automatically returns to `neutral` |
+
+Return to neutral is **completion-driven**, not timer-driven. The sprite player signals `spritePlayerFinished()` after the last frame; `expressionTick()` catches it and calls `expressionSet(EXPR_NEUTRAL)`.
+
+If a new expression is triggered while one is already playing, playback switches immediately — no queuing, no wait.
+
+### Programmatic face fallback
+
+If a `.sprite` file is missing for the requested expression, the firmware falls back to a programmatically drawn face (geometric primitives via LovyanGFX). In fallback mode a hold timer (`EXPRESSION_HOLD_MS`, default 8 s) returns Muni to neutral. The programmatic face supports all 7 expressions with blink and breathing animations.
+
+### Expressions
+
+| Name | Sprite behaviour | Programmatic face |
+|---|---|---|
+| `neutral` | Loops as idle | Calm round eyes, flat mouth, blink + breathe |
+| `happy` | Plays once → neutral | Curved eyes, wide smile, soft cheeks |
+| `excited` | Plays once → neutral | Wide eyes, big grin, cheeks, sparkles |
+| `sad` | Plays once → neutral | Downturned eyes, small frown |
+| `surprised` | Plays once → neutral | Large round eyes, open-O mouth |
+| `sleepy` | Plays once → neutral | Half-closed eyes, small open mouth |
+| `thinking` | Plays once → neutral | One eye narrowed, three dots upper-right |
+
+---
+
+## Connectivity
+
+### Currently working
+
+**MQTT** — primary smart home integration. Broker at `192.168.2.14:1883`.
+
+| Topic | Direction | Payload |
+|---|---|---|
+| `deskpet/expression` | subscribe | `neutral` / `happy` / `sad` / `surprised` / `sleepy` / `excited` / `thinking` |
+| `deskpet/animation` | subscribe | `bounce` / `blink` / `yawn` / `breathe` |
+| `deskpet/command` | subscribe | `restart` / `sleep` / `wake` |
+| `deskpet/status` | publish | `online` / `offline` (LWT) |
+| `deskpet/current_expression` | publish | current expression name |
+
+**USB serial** — open PlatformIO serial monitor at 115200 baud. All subsystem logs are prefixed (`[Display]`, `[SD]`, `[SpritePlayer]`, etc.).
+
+### Planned
+
+**Captive portal** — first-time WiFi setup without reflashing. On first boot with no saved credentials, Muni hosts a WiFi AP + config page.
+
+**WiFi REST API** — `muni.local/expression/<name>` (GET or POST). Any device on the local network can trigger expressions without MQTT. Powers the phone app and Electron companion.
+
+**Expression queue** — depth 3–4, source-agnostic, duplicate-spam protection. The same queue handles MQTT, REST, serial, and Electron inputs so sources can't interfere with each other.
+
+---
+
+## Sprite Server
+
+The sprite server runs locally on the home server (or any Docker host).
+
+```bash
+cd sprite-server
+docker compose up -d
+# Web UI:     http://192.168.2.14:8000
+# File server: http://192.168.2.14:8765
+```
+
+### Web UI (port 8000)
+
+- Upload a GIF (or PNG/JPEG)
+- Set character (`muni`) and expression name (`happy`)
+- **Preview** — shows frame count and output size without saving
+- **Publish** — converts to RGB565, saves to `sprites/muni/happy.sprite`, bumps manifest version
+- **Download** — saves the just-published `.sprite` file to your PC
+- **Library** — all published sprites listed as download links
+
+### Conversion
+
+GIF frames → centre-crop to square → resize to 240×240 (Lanczos) → pack as little-endian `uint16_t`:
+
+```python
+rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+struct.pack_into('<H', buf, idx, rgb565)
+```
+
+### Current download status
+
+Sprite auto-download on boot is **disabled** (`SPRITE_DOWNLOAD_ENABLED 0` in `sprite_manager.cpp`). Muni uses whatever `.sprite` files are already on the SD card.
+
+**Re-enable when the S3 arrives:**
+```cpp
+// firmware/src/sprite_manager.cpp, line 20:
+#define SPRITE_DOWNLOAD_ENABLED 1
+```
+
+The download system (manifest fetch, version compare, HTTP streaming to SD) is fully implemented and tested — it just doesn't run on boot until that flag is flipped.
+
+---
+
+## Simulator
+
+Python/pygame desktop simulator — full round-clipped 240×240 display, all expressions, MQTT.
 
 ```bash
 cd simulator
 pip install -r requirements.txt
 python simulator.py
-# Keys: 1-7 = expressions, b = bounce, y = yawn, q = quit
 ```
 
-### 5. Deploy the sprite server
-
-```bash
-cd sprite-server
-docker network create proxy   # one-time on the Docker host
-docker compose up -d
-```
-
-Configure Nginx Proxy Manager to route `sprites.mael.dk` → `deskpet-sprite-server:80`.
-
----
-
-## MQTT Topics
-
-All topics use the prefix `deskpet/`. Broker: `192.168.2.14:1883`.
-
-### ESP32 subscribes to:
-
-| Topic | Payload | Description |
-|---|---|---|
-| `deskpet/expression` | `happy` / `sad` / `surprised` / `sleepy` / `excited` / `thinking` / `neutral` | Set Muni's expression |
-| `deskpet/animation` | `bounce` / `blink` / `yawn` / `breathe` | Trigger a one-shot animation |
-| `deskpet/command` | `restart` / `sleep` / `wake` | System commands |
-| `deskpet/printer_progress` | `0`–`100` | Print progress ring — `100` triggers excited |
-
-### ESP32 publishes to:
-
-| Topic | Payload | Description |
-|---|---|---|
-| `deskpet/status` | `online` / `offline` | LWT — connection state |
-| `deskpet/current_expression` | expression name | Confirms currently displayed expression |
-
----
-
-## Expressions
-
-| Expression | Description |
-|---|---|
-| `neutral` | Calm open eyes — default idle state |
-| `happy` | Curved eyes, wide smile |
-| `excited` | Wide eyes, bigger grin, sparkles |
-| `sad` | Downturned eyes, small frown |
-| `surprised` | Large round eyes, open mouth |
-| `sleepy` | Half-closed eyes, slow breathing |
-| `thinking` | One eye narrowed, looking up |
-
----
-
-## Sprite System — sprites.mael.dk
-
-Muni's face starts as programmatic geometric drawing (always works, no files needed). The sprite system overlays hand-drawn or AI-generated artwork when available.
-
-### How it works
-
-On every boot (after WiFi connects), the ESP32:
-
-1. Fetches `http://sprites.mael.dk/manifest.json`
-2. Compares `"version"` against the version stored in NVS (survives reboots)
-3. If newer: downloads each expression's `.sprite` file to LittleFS
-4. If same version or server unreachable: uses cached LittleFS files
-5. If no cache at all: falls back silently to the programmatic face
-
-### Sprite file format
-
-Raw RGB565 bitmap: `240 × 240 × 2 bytes = 115,200 bytes`.
-Stored in LittleFS at `/sprites/muni/<expression>.sprite`.
-
-### manifest.json
-
-```json
-{
-  "version": "0.0.1",
-  "characters": ["muni", "odin"],
-  "expressions": ["neutral", "happy", "sad", "surprised", "sleepy", "excited", "thinking"],
-  "updated": "2026-03-13"
-}
-```
-
-Bump `"version"` to trigger a re-download on all devices on next boot.
-
-### Adding sprites
-
-Place `.sprite` files in `sprite-server/sprites/muni/`, bump the version in `manifest.json`, redeploy. Devices update on next boot.
+Keys: `1`–`7` = expressions, `b` = bounce, `y` = yawn, `q` = quit.
 
 ---
 
 ## Roadmap
 
-### Stage 1 — Animated Face (current)
+### Done
 
-- [x] PlatformIO firmware compiles and flashes to ESP32-C3
-- [x] GC9A01 initialises with LovyanGFX (40 MHz, invert=true)
-- [x] Idle animations: blinking, breathing effect
-- [x] Expression system: all 7 expressions
-- [x] EXCITED visually distinct from HAPPY (wide eyes, bigger grin, sparkles)
-- [x] WiFi connection with reconnect logic
-- [x] MQTT client connects and subscribes
-- [x] Expression changes on `deskpet/expression` message
-- [x] Sprite server (nginx + Docker + manifest.json)
-- [x] Firmware sprite cache (NVS version check, LittleFS download, graceful fallback)
-- [x] Desktop simulator (pygame, all expressions, MQTT, round clip mask)
-- [x] SD card mounted on shared SPI2 bus (FAT32, ready for animation frames)
-- [x] WS2812B LEDs — slow midnight-blue breathing, non-blocking
-- [x] VS Code multi-root workspace (`muni.code-workspace`)
-- [ ] Homey flows: someone arrives → happy, everyone in bed → sleepy
-- [ ] Door/window opens → surprised
-- [ ] Good morning → yawn animation
-- [ ] Rain forecast → sad
-- [ ] Hand-drawn Muni sprite sheets v0.1
-- [ ] RGB565 animation frames on SD card streamed to display
+- [x] GC9A01 display with LovyanGFX (40 MHz, shared SPI2, bus_shared)
+- [x] All 7 programmatic expressions with blink + breathing animations
+- [x] SD card on shared SPI2 bus
+- [x] SD sprite streaming — chunked RGB565 playback, 12–16 fps
+- [x] Play-once expression sprites → auto-return to looping neutral
+- [x] WS2812B LEDs — midnight-blue breathing, NeoPixelBus, non-blocking
+- [x] WiFi + auto-reconnect
+- [x] MQTT — expressions, animations, commands, LWT
+- [x] NVS sprite version cache (Preferences, survives reboot)
+- [x] Sprite server — Docker, FastAPI, GIF→RGB565 web UI, download links
+- [x] Desktop simulator — pygame, MQTT, round mask
+- [x] VS Code multi-root workspace
 
-### Stage 2 — Progress Ring & Data Dials
+### Near term
 
-Muni's round display is perfect for circular data visualisations around the outside of his face.
+- [ ] Sprite auto-download re-enabled on S3 (flip `SPRITE_DOWNLOAD_ENABLED`)
+- [ ] Hand-drawn Muni sprite sheets v0.1 (neutral, happy, sad, surprised, sleepy, excited, thinking)
+- [ ] Captive portal WiFi setup
+- [ ] WiFi REST API (`muni.local/expression/<name>`)
+- [ ] Expression queue (depth 3–4, dedup, source-agnostic)
+- [ ] OTA firmware updates
+- [ ] Homey flows — arrive home → happy, everyone in bed → sleepy, door opens → surprised
 
-- [ ] **Print progress ring** — arc grows clockwise 0–100% on `deskpet/printer_progress`; triggers excited at 100%
-- [ ] **Temperature dial** — colour-coded arc showing current room/outdoor temperature
-- [ ] **General data ring** — generic 0–100% arc driven by any MQTT value
+### Companion app (Electron)
 
-### Stage 3 — Physical Body
+Desktop app for Windows/macOS/Linux:
 
-- [ ] Character design sketched (chibi raven with tiny wings and runic details)
-- [ ] 3D model designed (enclosure for ESP32-C3 SuperMini + GC9A01 + LED ring)
-- [ ] First print test
-- [ ] Final print and assembly
+- [ ] Twitch EventSub — new follower, sub, raid → trigger expressions
+- [ ] Discord bot — DMs, @mentions → reactions
+- [ ] Stream Deck plugin
+- [ ] USB serial control (no WiFi required)
+- [ ] Expression scheduler (time-of-day moods)
 
-### Stage 3.5 — 3D Printer Integration
+### Phone app
 
-Muni watches over your prints and celebrates when they finish.
+- [ ] Connect to Muni over WiFi REST (`muni.local`)
+- [ ] One-tap expression tiles
+- [ ] Notification forwarding (calls, messages → surprise/excited)
 
-- [ ] Subscribe to `deskpet/printer_progress` (`0`–`100`)
-- [ ] Draw cyan progress ring arc around face in real time
-- [ ] Trigger excited expression + bounce at 100%
-- [ ] Auto-clear ring after celebration
-- [ ] Add Homey / OctoPrint / OrcaSlicer flow to publish progress
+### Physical
+
+- [ ] 3D printed enclosure — chibi raven body with tiny wings
+- [ ] Custom PCB — clean up wiring, add proper 5V → 3.3V regulation
+- [ ] Swap ESP32-C3 → S3 N16R8 (ordered)
+
+### Stage 2 — data visualisation
+
+- [ ] Print progress ring — cyan arc 0–100% on `deskpet/printer_progress`, excited at 100%
+- [ ] Temperature arc — colour-coded room/outdoor temperature
+- [ ] General data ring — any 0–100% MQTT value
 
 ---
 
 ## Notes
 
-- **LovyanGFX over TFT_eSPI:** TFT_eSPI's `SPIClass` wrapper triggers a `TG1WDT_SYS_RST` watchdog crash during SPI init on the ESP32-C3. LovyanGFX calls `spi_bus_initialize()` via ESP-IDF directly — no crash. Don't switch back.
-- **Shared SPI bus:** `bus_shared=true` in `lgfx_config.h` tells LovyanGFX to release SPI2 between display transactions. The SD library's `SPIClass(FSPI)` instance reuses the same SPI2_HOST registration and takes the bus when the display is idle.
-- **SD init order:** `sdInit()` must be called after `displayInit()`. LovyanGFX registers the SPI2 bus host inside `tft.init()` — the SD library depends on that registration already existing.
-- **LED timing:** The WS2812B breathing uses FastLED's `sin8()` (integer sine, no floats) at a 20 ms tick interval. The 4-second period matches the display's breathing animation so the room light and Muni's face pulse in sync.
-- **Credentials:** `include/config.h` is gitignored. Never commit it — use `config.example.h` as the template.
-- **LittleFS partition:** `platformio.ini` uses the `min_spiffs` scheme (~190 KB for sprites). For larger sprite sets, switch to a custom partition table.
-- **Sprite fallback:** The programmatic face is always the ground truth. Sprites are cosmetic only — a failed download or full filesystem changes nothing visible.
+- `firmware/include/config.h` is gitignored — never commit it. Use `config.example.h` as the template.
+- `platformio.ini` uses the `min_spiffs` partition scheme (~190 KB LittleFS). Sprite files live on the SD card, so this partition only needs to hold NVS overhead — it's fine.
+- The programmatic face is always the ground truth. Sprites are cosmetic. A missing file or SD failure changes nothing functionally.
+- LED breathing period is 4 seconds, matching the programmatic face's breathing sine wave, so the room light and Muni's eyes pulse in sync.
 
 ---
 
