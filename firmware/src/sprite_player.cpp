@@ -38,13 +38,13 @@
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-static const int32_t  CHUNK_ROWS         = 8;
-static const uint32_t CHUNK_BYTES        = (uint32_t)CHUNK_ROWS * DISPLAY_WIDTH * 2; // 3,840
+static const int32_t  CHUNK_ROWS         = 16; // safe small chunk to save RAM
+static const uint32_t CHUNK_BYTES        = (uint32_t)CHUNK_ROWS * DISPLAY_WIDTH * 2; // 7,680
 static const uint32_t FRAME_BYTES        = (uint32_t)DISPLAY_HEIGHT * DISPLAY_WIDTH * 2; // 115,200
 static const uint32_t FRAME_INTERVAL_MS  = 50; // 20fps target
 
-// Static chunk buffer — 3,840 bytes in BSS; no malloc, no fragmentation.
-// CHUNK_ROWS=8 divides DISPLAY_HEIGHT=240 evenly (30 chunks/frame).
+// Static chunk buffer — 7,680 bytes in BSS; no malloc, no fragmentation.
+// Keeps memory usage reasonable so WiFi and other subsystems can initialise.
 static uint8_t s_chunkBuf[CHUNK_BYTES];
 
 // ---------------------------------------------------------------------------
@@ -132,6 +132,9 @@ void spritePlayerTick() {
 
     uint32_t frameStart = now;
 
+    uint32_t totalReadTime = 0;
+    uint32_t totalPushTime = 0;
+
     // End of file reached
     if (s_frameIndex >= s_totalFrames) {
         if (s_loop) {
@@ -149,34 +152,42 @@ void spritePlayerTick() {
         }
     }
 
-    // Stream the frame CHUNK_ROWS at a time.
+    // Stream the frame in CHUNK_ROWS slices to balance memory and transfer time.
+    // Each iteration transfers a smaller chunk and allows shared SPI with SD well.
     //
-    // Each iteration:
-    //   1. s_file.read() — SD CS asserted, SPI2 used at 25 MHz, SD CS released.
-    //   2. tft.pushImage() — display CS asserted, SPI2 used at 40 MHz,
-    //      display CS released (bus_shared=true ends the transaction).
-    //
-    // The two operations never overlap, so SPI2 is never double-claimed.
+    // Each loop:
+    //   1. s_file.read().
+    //   2. tft.pushImage().
+    // The two never overlap.
     int32_t rowY = 0;
     while (rowY < (int32_t)DISPLAY_HEIGHT) {
-        size_t got = s_file.read(s_chunkBuf, CHUNK_BYTES);
-        if (got < CHUNK_BYTES) {
+        uint32_t remainingRows = DISPLAY_HEIGHT - rowY;
+        uint32_t rowsToRead = min((uint32_t)CHUNK_ROWS, remainingRows);
+        uint32_t bytesToRead = rowsToRead * DISPLAY_WIDTH * 2;
+
+        uint32_t readStart = millis();
+        size_t got = s_file.read(s_chunkBuf, bytesToRead);
+        totalReadTime += millis() - readStart;
+
+        if (got < bytesToRead) {
             Serial.printf("[SpritePlayer] Short read at row %d (%u/%lu B) — stopping\n",
-                          rowY, got, CHUNK_BYTES);
+                          rowY, got, bytesToRead);
             spritePlayerStop();
             return;
         }
 
-        tft.pushImage(0, rowY, DISPLAY_WIDTH, CHUNK_ROWS,
+        uint32_t pushStart = millis();
+        tft.pushImage(0, rowY, DISPLAY_WIDTH, rowsToRead,
                       (lgfx::rgb565_t*)s_chunkBuf);
+        totalPushTime += millis() - pushStart;
 
-        rowY += CHUNK_ROWS;
+        rowY += rowsToRead;
     }
 
     s_frameIndex++;
     uint32_t elapsed = millis() - frameStart;
     s_lastFrameMs = millis();
 
-    Serial.printf("[SpritePlayer] frame %lu/%lu loop %lu %lums\n",
-                  s_frameIndex, s_totalFrames, s_loopCount, elapsed);
+    Serial.printf("[SpritePlayer] frame %lu/%lu loop %lu %lums (Read: %lums, Push: %lums)\n",
+                  s_frameIndex, s_totalFrames, s_loopCount, elapsed, totalReadTime, totalPushTime);
 }

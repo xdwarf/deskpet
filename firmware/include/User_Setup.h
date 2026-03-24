@@ -39,7 +39,7 @@
 // --- SPI Pin definitions for ESP32-C3 ---
 // These match the wiring in the README. Change if you used different pins.
 #define TFT_MOSI  6    // SPI Data (labelled SDA on the GC9A01 board)
-#define TFT_MISO  2    // GC9A01 is write-only so MISO is unused, but MUST be a
+#define TFT_MISO  3    // GC9A01 is write-only so MISO is unused, but MUST be a
                        // real GPIO — NOT -1. On ESP32-C3, TFT_eSPI has a fixup
                        // (TFT_eSPI_ESP32_C3.h:316) that silently reassigns MISO
                        // to the same pin as MOSI when MISO == -1. The GPIO matrix
@@ -56,8 +56,8 @@
 // --- SPI frequency ---
 // Start conservatively at 10 MHz to rule out signal integrity issues.
 // Once display is confirmed working, increase toward 40 MHz.
-#define SPI_FREQUENCY       10000000
-#define SPI_READ_FREQUENCY   5000000
+#define SPI_FREQUENCY       40000000
+#define SPI_READ_FREQUENCY  20000000
 
 // --- Fonts to load ---
 // Loading all built-in fonts costs flash space. Load only what you need.
@@ -76,7 +76,7 @@
 // --- DMA ---
 // ESP32-C3 supports DMA for SPI, which can speed up full-screen redraws.
 // Enable once the basic display is working.
-// #define USE_DMA_TO_TFT
+#define USE_DMA_TO_TFT
 
 // --- Guard ---
 // Must be at the END of this file. Tells TFT_eSPI that setup is complete so

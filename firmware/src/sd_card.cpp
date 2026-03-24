@@ -39,8 +39,8 @@ bool sdInit() {
     );
 
     // Attempt to mount the card.
-    // 25 MHz is the standard safe SD speed; drop to 4 MHz if you see
-    // CRC errors or failed reads on long wires.
+    // 25 MHz is the standard safe SD speed and reduces risk of SPI sharing
+    // timing issues with the display/wifi subsystems.
     if (!SD.begin(PIN_SD_CS, s_sdSPI, 25000000)) {
         Serial.println("[SD] Mount failed — no card, wrong wiring, or unsupported format");
         Serial.println("[SD] Expected: FAT32 formatted, ≤32 GB");

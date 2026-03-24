@@ -375,3 +375,70 @@ Desktop app for Windows/macOS/Linux:
 ---
 
 *Huginn thinks. Muninn remembers. Muni watches your desk.*
+
+
+SPI Data speeds tests conclusion:
+
+Summary: what we tried, what worked, what didn’t, and why
+Your setup:
+
+ESP32-C3 Mini
+GC9A01 240×240 TFT via LovyanGFX over SPI2
+SD card on same SPI2 (shared SCK/MOSI, separate CS/MISO)
+Sprite playback: 240×240 RGB565 frames from SD -> pushImage()
+1) Initial problem
+Objective: smoother animation higher framerate from SD sprite (=stream 115,200 B frame)
+Initial framerate 10 fps (`100ms/frame`)
+Logs: ~75ms read + ~25ms push
+Partial display in first fix run (only 5-10 lines) due chunking bug
+2) Optimizations we applied
+2.1 SD speed change
+sd_card.cpp: SD.begin(..., 25000000) → 40000000
+intention: let SD read be faster
+effect: read time still high (primary bottleneck around 70-80ms)
+risk: some cards/wiring may fail with 40 MHz (not stable all cases)
+2.2 Chunk size changes in sprite_player.cpp
+initial CHUNK_ROWS=8 (30 chunks/frame)
+then CHUNK_ROWS=16 (15 chunks/frame)
+then mistakenly full-frame (CHUNK_ROWS=240) causing only half image due loop removal and then corrected
+final: CHUNK_ROWS=16 stable for RAM + functional render
+static chunk buffer used (no heap)
+8: 3.8KB
+16: 7.6KB
+240: 115.2KB (risk for fragmentation/mem-pressure; broke WiFi and/or display)
+2.3 DMA
+LovyanGFX already uses cfg.dma_channel = SPI_DMA_CH_AUTO
+tft.pushImage() already DMA, so no code change required there
+main issue wasn’t DMA in display path; SD path is CPU/SPI and isn't DMA-enabled in Arduino SD
+3) Diagnostics added
+Added per-frame timing in sprite_player.cpp:
+frame N/M loop K Xms (Read: Yms, Push: Zms)
+This confirmed actual bottleneck:
+SD read Yms = ~72–82 ms
+TFT push Zms = ~22–30 ms
+4) Stability issue observed
+Full-frame read mode attempted and it caused WiFi init failure (esp_wifi_init 257, Failed to deinit Wi-Fi), because:
+CHUNK_ROWS=240 allocates huge 115KB BSS buffer
+C3 has 320KB RAM; LGFX sprite + buffer + wifi + others exceeds safe range
+memory pressure can break WiFi/RTC driver init
+Solution used:
+
+revert to CHUNK_ROWS=16 and SD 25MHz
+stable with full frame visible and WiFi restored
+5) Final result
+stable operation with complete frame rendering
+effective maximum on this device: 100ms/frame (10fps), limited by SD read
+display push path is fine (22–30ms)
+target 20fps not achievable with current SD speed/code/hardware
+final recommended mitigation: better hardware & direct DMA-capable SD path (or use SPIFFS with raw read from flash, or higher-speed SD/SDMMC peripheral or parallel display bus)
+6) Lessons for next project brief
+Measure first: add logging for read/push times (= done).
+SPI partitioning: SD + TFT on same bus means bus switching overhead and possible mutex lock delays.
+Memory budget: keep chunk buffer small for constrained RAM (especially ESP32-C3).
+SPI clock safe ceiling: GC9A01 may be <40MHz, but read path / SD support can differ. 25MHz is safe.
+Do not depend on Arduino SD jitter for 20fps; use dedicated DMA-friendly frameworks or SDMMC for high throughput.
+Avoid full-frame in RAM on C3 + large sprite driver (115KB) unless you can guarantee RAM headroom.
+7) Final quick actionable in brief
+CHUNK_ROWS=16, SD 25MHz, LovyanGFX DMA = stable baseline
+profiling: avg [72ms read + 25ms push] = 97ms total
+target improvement: new board / SD interface / decompress within RAM / store compressed sprite vs raw; or use 8-bit (RGB332) or 120x120 halves to cut size.
