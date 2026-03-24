@@ -9,16 +9,19 @@ Routes:
   POST /publish                       → upload GIF/PNG, convert, save .sprite, bump manifest
   GET  /download/{character}/{expression} → download a published .sprite file
   POST /convert-mp4                   → upload MP4, returns a 240x240 GIF download
+  POST /convert-mp4-batch             → upload multiple MP4s, returns a ZIP of GIFs
 """
 
+import io
 import os
-import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
+from typing import List
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 import converter
@@ -157,34 +160,19 @@ def download_sprite(character: str, expression: str):
 
 
 # ---------------------------------------------------------------------------
-# Convert MP4 → GIF
+# Shared MP4 → GIF helper
 # ---------------------------------------------------------------------------
 
-@app.post("/convert-mp4")
-async def convert_mp4(
-    file: UploadFile = File(...),
-    fps: int = Form(12),
-):
-    """
-    Upload an MP4, get back a 240x240 high-quality GIF.
-    fps options: 8, 12, 24
-    """
-    if fps not in (8, 12, 24):
-        raise HTTPException(status_code=422, detail="fps must be 8, 12, or 24")
-
-    if not file.filename.lower().endswith(".mp4"):
-        raise HTTPException(status_code=422, detail="Only MP4 files are accepted")
-
-    data = await file.read()
-
+def _mp4_to_gif(data: bytes, filename: str, fps: int) -> bytes:
+    """Convert raw MP4 bytes to 240x240 GIF bytes using FFmpeg."""
     with tempfile.TemporaryDirectory() as tmp:
-        mp4_path  = Path(tmp) / "input.mp4"
+        mp4_path     = Path(tmp) / "input.mp4"
         palette_path = Path(tmp) / "palette.png"
-        gif_path  = Path(tmp) / "output.gif"
+        gif_path     = Path(tmp) / "output.gif"
 
         mp4_path.write_bytes(data)
 
-        # Step 1 — generate optimised palette for best colour quality
+        # Step 1 — generate optimised palette
         palette_cmd = [
             "ffmpeg", "-y",
             "-i", str(mp4_path),
@@ -193,9 +181,9 @@ async def convert_mp4(
         ]
         result = subprocess.run(palette_cmd, capture_output=True)
         if result.returncode != 0:
-            raise HTTPException(status_code=500, detail="FFmpeg palette generation failed: " + result.stderr.decode())
+            raise RuntimeError("Palette generation failed for " + filename + ": " + result.stderr.decode())
 
-        # Step 2 — render GIF using palette (high quality dithering)
+        # Step 2 — render GIF using palette
         gif_cmd = [
             "ffmpeg", "-y",
             "-i", str(mp4_path),
@@ -205,11 +193,31 @@ async def convert_mp4(
         ]
         result = subprocess.run(gif_cmd, capture_output=True)
         if result.returncode != 0:
-            raise HTTPException(status_code=500, detail="FFmpeg GIF conversion failed: " + result.stderr.decode())
+            raise RuntimeError("GIF conversion failed for " + filename + ": " + result.stderr.decode())
 
-        gif_bytes = gif_path.read_bytes()
+        return gif_path.read_bytes()
 
-    # Return GIF as download
+
+# ---------------------------------------------------------------------------
+# Convert single MP4 → GIF
+# ---------------------------------------------------------------------------
+
+@app.post("/convert-mp4")
+async def convert_mp4(
+    file: UploadFile = File(...),
+    fps: int = Form(12),
+):
+    if fps not in (8, 12, 18, 24):
+        raise HTTPException(status_code=422, detail="fps must be 8, 12, 18, or 24")
+    if not file.filename.lower().endswith(".mp4"):
+        raise HTTPException(status_code=422, detail="Only MP4 files are accepted")
+
+    data = await file.read()
+    try:
+        gif_bytes = _mp4_to_gif(data, file.filename, fps)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".gif") as out:
         out.write(gif_bytes)
         out_path = out.name
@@ -219,4 +227,45 @@ async def convert_mp4(
         out_path,
         media_type="image/gif",
         filename=f"{original_name}_{fps}fps_240x240.gif",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Convert batch MP4s → ZIP of GIFs
+# ---------------------------------------------------------------------------
+
+@app.post("/convert-mp4-batch")
+async def convert_mp4_batch(
+    files: List[UploadFile] = File(...),
+    fps: int = Form(12),
+):
+    if fps not in (8, 12, 18, 24):
+        raise HTTPException(status_code=422, detail="fps must be 8, 12, 18, or 24")
+
+    for f in files:
+        if not f.filename.lower().endswith(".mp4"):
+            raise HTTPException(status_code=422, detail=f"{f.filename} is not an MP4")
+
+    # Build ZIP in memory
+    zip_buffer = io.BytesIO()
+    errors = []
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            data = await f.read()
+            try:
+                gif_bytes = _mp4_to_gif(data, f.filename, fps)
+                gif_name  = Path(f.filename).stem + f"_{fps}fps_240x240.gif"
+                zf.writestr(gif_name, gif_bytes)
+            except RuntimeError as e:
+                errors.append(str(e))
+
+    if errors and len(errors) == len(files):
+        raise HTTPException(status_code=500, detail="All conversions failed: " + "; ".join(errors))
+
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=muni_gifs_{fps}fps.zip"}
     )

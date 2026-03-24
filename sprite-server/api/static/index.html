@@ -17,27 +17,31 @@
     <!-- MP4 to GIF converter -->
     <section class="card" id="mp4-card">
       <h2>Convert MP4 → GIF</h2>
-      <p class="hint">Upload an MP4 animation. It will be converted to a 240×240 GIF ready for the sprite publisher.</p>
+      <p class="hint">Upload one or more MP4 animations. They will be converted to 240×240 GIFs ready for the sprite publisher. Batch converts download as a ZIP.</p>
 
       <form id="mp4-form">
         <label>
-          MP4 File
-          <input type="file" id="mp4-input" accept="video/mp4" required />
+          MP4 File(s)
+          <input type="file" id="mp4-input" accept="video/mp4" multiple required />
         </label>
         <label>
           Frame Rate
           <select id="mp4-fps">
             <option value="24">24 fps</option>
+            <option value="18">18 fps</option>
             <option value="12" selected>12 fps (recommended)</option>
             <option value="8">8 fps</option>
           </select>
         </label>
 
         <div class="btn-row">
-          <button type="submit" id="btn-convert-mp4">Convert &amp; Download GIF</button>
+          <button type="submit" id="btn-convert-mp4">Convert &amp; Download</button>
         </div>
       </form>
 
+      <div id="mp4-progress" hidden>
+        <p id="mp4-progress-text">Converting…</p>
+      </div>
       <div id="mp4-result-box" hidden></div>
     </section>
 
@@ -84,53 +88,85 @@
 
   <script src="/static/app.js"></script>
   <script>
-    // MP4 → GIF converter
+    // MP4 → GIF converter (single or batch)
     document.getElementById('mp4-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const resultBox = document.getElementById('mp4-result-box');
-      const btn = document.getElementById('btn-convert-mp4');
-      const file = document.getElementById('mp4-input').files[0];
-      const fps  = document.getElementById('mp4-fps').value;
+      const resultBox   = document.getElementById('mp4-result-box');
+      const progressBox = document.getElementById('mp4-progress');
+      const progressTxt = document.getElementById('mp4-progress-text');
+      const btn         = document.getElementById('btn-convert-mp4');
+      const files       = document.getElementById('mp4-input').files;
+      const fps         = document.getElementById('mp4-fps').value;
 
-      if (!file) return;
+      if (!files.length) return;
 
-      btn.disabled = true;
-      btn.textContent = 'Converting…';
-      resultBox.hidden = true;
+      btn.disabled      = true;
+      resultBox.hidden  = true;
+      progressBox.hidden = false;
+
+      const isBatch = files.length > 1;
+      progressTxt.textContent = isBatch
+        ? `Converting ${files.length} files…`
+        : 'Converting…';
 
       const fd = new FormData();
-      fd.append('file', file);
+      for (const f of files) fd.append('files', f);
       fd.append('fps', fps);
 
-      try {
-        const res = await fetch('/convert-mp4', { method: 'POST', body: fd });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.detail || 'Conversion failed');
+      const endpoint = isBatch ? '/convert-mp4-batch' : '/convert-mp4';
+
+      // Single file uses 'file' key not 'files'
+      if (!isBatch) {
+        const fd2 = new FormData();
+        fd2.append('file', files[0]);
+        fd2.append('fps', fps);
+        try {
+          const res = await fetch('/convert-mp4', { method: 'POST', body: fd2 });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Conversion failed');
+          }
+          const blob = await res.blob();
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          const disp = res.headers.get('content-disposition') || '';
+          const nm   = disp.match(/filename="?([^"]+)"?/);
+          a.download = nm ? nm[1] : 'muni.gif';
+          a.href = url;
+          a.click();
+          URL.revokeObjectURL(url);
+          resultBox.textContent = '✓ GIF downloaded — ready to publish above!';
+          resultBox.className = 'result-box success';
+        } catch (err) {
+          resultBox.textContent = '✗ ' + err.message;
+          resultBox.className = 'result-box error';
         }
-
-        // Trigger download
-        const blob = await res.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        const disposition = res.headers.get('content-disposition') || '';
-        const nameMatch   = disposition.match(/filename="?([^"]+)"?/);
-        a.download = nameMatch ? nameMatch[1] : 'muni.gif';
-        a.href = url;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        resultBox.textContent = '✓ GIF downloaded — ready to publish above!';
-        resultBox.className = 'result-box success';
-        resultBox.hidden = false;
-      } catch (err) {
-        resultBox.textContent = '✗ ' + err.message;
-        resultBox.className = 'result-box error';
-        resultBox.hidden = false;
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Convert & Download GIF';
+      } else {
+        try {
+          const res = await fetch('/convert-mp4-batch', { method: 'POST', body: fd });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Batch conversion failed');
+          }
+          const blob = await res.blob();
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.download = `muni_gifs_${fps}fps.zip`;
+          a.href = url;
+          a.click();
+          URL.revokeObjectURL(url);
+          resultBox.textContent = `✓ ZIP downloaded — ${files.length} GIFs ready to publish!`;
+          resultBox.className = 'result-box success';
+        } catch (err) {
+          resultBox.textContent = '✗ ' + err.message;
+          resultBox.className = 'result-box error';
+        }
       }
+
+      progressBox.hidden = true;
+      resultBox.hidden   = false;
+      btn.disabled       = false;
+      btn.textContent    = 'Convert & Download';
     });
   </script>
 </body>
