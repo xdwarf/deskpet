@@ -8,8 +8,11 @@ Routes:
   POST /convert                       → upload GIF/PNG, returns preview info + frame count
   POST /publish                       → upload GIF/PNG, convert, save .sprite, bump manifest
   GET  /download/{character}/{expression} → download a published .sprite file
-  POST /convert-mp4                   → upload MP4, returns a 240x240 GIF download
-  POST /convert-mp4-batch             → upload multiple MP4s, returns a ZIP of GIFs
+  POST /convert-mp4                   → upload MP4(s), converts and saves GIFs to library
+  GET  /gifs                          → list all GIFs in the library
+  GET  /gifs/{filename}               → serve a GIF for preview
+  DELETE /gifs/{filename}             → delete a GIF from the library
+  POST /publish-from-gif              → publish a saved GIF directly to sprites
 """
 
 import io
@@ -29,12 +32,14 @@ import manifest as manifest_mod
 
 # ---------------------------------------------------------------------------
 SPRITES_DIR = Path(os.environ.get("SPRITES_DIR", "/sprites"))
+GIFS_DIR    = Path(os.environ.get("GIFS_DIR", "/gifs"))
 STATIC_DIR  = Path(__file__).parent / "static"
 
 app = FastAPI(title="DeskPet Sprite Server", version="1.0.0")
 
-# Serve static UI files at /static/*
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+GIFS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -61,39 +66,29 @@ def get_manifest():
 
 @app.get("/published")
 def get_published():
-    """Return a dict of {character: [expression, ...]} for all .sprite files."""
     result: dict[str, list[str]] = {}
     if not SPRITES_DIR.exists():
         return result
-
     for char_dir in sorted(SPRITES_DIR.iterdir()):
         if not char_dir.is_dir():
             continue
-        expressions = sorted(
-            p.stem for p in char_dir.glob("*.sprite")
-        )
+        expressions = sorted(p.stem for p in char_dir.glob("*.sprite"))
         if expressions:
             result[char_dir.name] = expressions
-
     return result
 
 
 # ---------------------------------------------------------------------------
-# Convert (preview only — does not write to disk)
+# Convert (preview only)
 # ---------------------------------------------------------------------------
 
 @app.post("/convert")
 async def convert_preview(file: UploadFile = File(...)):
-    """
-    Upload an image, return info about how it would be converted.
-    Does not write anything to /sprites.
-    """
     data = await file.read()
     try:
         sprite_bytes, frame_count = converter.convert_to_sprite(data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
-
     return {
         "filename": file.filename,
         "frames": frame_count,
@@ -103,7 +98,7 @@ async def convert_preview(file: UploadFile = File(...)):
 
 
 # ---------------------------------------------------------------------------
-# Publish (convert + save + bump manifest)
+# Publish from upload
 # ---------------------------------------------------------------------------
 
 @app.post("/publish")
@@ -148,10 +143,7 @@ async def publish(
 def download_sprite(character: str, expression: str):
     path = SPRITES_DIR / character / f"{expression}.sprite"
     if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"{character}/{expression}.sprite not found",
-        )
+        raise HTTPException(status_code=404, detail=f"{character}/{expression}.sprite not found")
     return FileResponse(
         str(path),
         media_type="application/octet-stream",
@@ -164,7 +156,6 @@ def download_sprite(character: str, expression: str):
 # ---------------------------------------------------------------------------
 
 def _mp4_to_gif(data: bytes, filename: str, fps: int) -> bytes:
-    """Convert raw MP4 bytes to 240x240 GIF bytes using FFmpeg."""
     with tempfile.TemporaryDirectory() as tmp:
         mp4_path     = Path(tmp) / "input.mp4"
         palette_path = Path(tmp) / "palette.png"
@@ -172,7 +163,6 @@ def _mp4_to_gif(data: bytes, filename: str, fps: int) -> bytes:
 
         mp4_path.write_bytes(data)
 
-        # Step 1 — generate optimised palette
         palette_cmd = [
             "ffmpeg", "-y",
             "-i", str(mp4_path),
@@ -183,7 +173,6 @@ def _mp4_to_gif(data: bytes, filename: str, fps: int) -> bytes:
         if result.returncode != 0:
             raise RuntimeError("Palette generation failed for " + filename + ": " + result.stderr.decode())
 
-        # Step 2 — render GIF using palette
         gif_cmd = [
             "ffmpeg", "-y",
             "-i", str(mp4_path),
@@ -199,43 +188,11 @@ def _mp4_to_gif(data: bytes, filename: str, fps: int) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Convert single MP4 → GIF
+# Convert MP4(s) → save to GIF library
 # ---------------------------------------------------------------------------
 
 @app.post("/convert-mp4")
 async def convert_mp4(
-    file: UploadFile = File(...),
-    fps: int = Form(12),
-):
-    if fps not in (8, 12, 18, 24):
-        raise HTTPException(status_code=422, detail="fps must be 8, 12, 18, or 24")
-    if not file.filename.lower().endswith(".mp4"):
-        raise HTTPException(status_code=422, detail="Only MP4 files are accepted")
-
-    data = await file.read()
-    try:
-        gif_bytes = _mp4_to_gif(data, file.filename, fps)
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".gif") as out:
-        out.write(gif_bytes)
-        out_path = out.name
-
-    original_name = Path(file.filename).stem
-    return FileResponse(
-        out_path,
-        media_type="image/gif",
-        filename=f"{original_name}_{fps}fps_240x240.gif",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Convert batch MP4s → ZIP of GIFs
-# ---------------------------------------------------------------------------
-
-@app.post("/convert-mp4-batch")
-async def convert_mp4_batch(
     files: List[UploadFile] = File(...),
     fps: int = Form(12),
 ):
@@ -246,26 +203,99 @@ async def convert_mp4_batch(
         if not f.filename.lower().endswith(".mp4"):
             raise HTTPException(status_code=422, detail=f"{f.filename} is not an MP4")
 
-    # Build ZIP in memory
-    zip_buffer = io.BytesIO()
+    saved = []
     errors = []
 
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            data = await f.read()
-            try:
-                gif_bytes = _mp4_to_gif(data, f.filename, fps)
-                gif_name  = Path(f.filename).stem + f"_{fps}fps_240x240.gif"
-                zf.writestr(gif_name, gif_bytes)
-            except RuntimeError as e:
-                errors.append(str(e))
+    for f in files:
+        data = await f.read()
+        try:
+            gif_bytes = _mp4_to_gif(data, f.filename, fps)
+            gif_name  = Path(f.filename).stem + f"_{fps}fps.gif"
+            out_path  = GIFS_DIR / gif_name
+            out_path.write_bytes(gif_bytes)
+            saved.append(gif_name)
+        except RuntimeError as e:
+            errors.append(str(e))
 
-    if errors and len(errors) == len(files):
+    if errors and not saved:
         raise HTTPException(status_code=500, detail="All conversions failed: " + "; ".join(errors))
 
-    zip_buffer.seek(0)
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename=muni_gifs_{fps}fps.zip"}
-    )
+    return {"saved": saved, "errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# GIF library — list
+# ---------------------------------------------------------------------------
+
+@app.get("/gifs")
+def list_gifs():
+    if not GIFS_DIR.exists():
+        return []
+    return sorted([f.name for f in GIFS_DIR.glob("*.gif")])
+
+
+# ---------------------------------------------------------------------------
+# GIF library — serve for preview
+# ---------------------------------------------------------------------------
+
+@app.get("/gifs/{filename}")
+def serve_gif(filename: str):
+    path = GIFS_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"{filename} not found")
+    return FileResponse(str(path), media_type="image/gif")
+
+
+# ---------------------------------------------------------------------------
+# GIF library — delete
+# ---------------------------------------------------------------------------
+
+@app.delete("/gifs/{filename}")
+def delete_gif(filename: str):
+    path = GIFS_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"{filename} not found")
+    path.unlink()
+    return {"deleted": filename}
+
+
+# ---------------------------------------------------------------------------
+# Publish from GIF library
+# ---------------------------------------------------------------------------
+
+@app.post("/publish-from-gif")
+async def publish_from_gif(
+    filename:   str = Form(...),
+    character:  str = Form(...),
+    expression: str = Form(...),
+):
+    character  = character.strip().lower()
+    expression = expression.strip().lower()
+    if not character or not expression:
+        raise HTTPException(status_code=422, detail="character and expression are required")
+
+    gif_path = GIFS_DIR / filename
+    if not gif_path.exists():
+        raise HTTPException(status_code=404, detail=f"{filename} not found in GIF library")
+
+    data = gif_path.read_bytes()
+    try:
+        sprite_bytes, frame_count = converter.convert_to_sprite(data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    out_dir  = SPRITES_DIR / character
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{expression}.sprite"
+    out_path.write_bytes(sprite_bytes)
+
+    updated_manifest = manifest_mod.publish(character, expression)
+
+    return {
+        "character":  character,
+        "expression": expression,
+        "frames":     frame_count,
+        "sprite_bytes": len(sprite_bytes),
+        "path":       str(out_path.relative_to(SPRITES_DIR)),
+        "manifest_version": updated_manifest["version"],
+    }

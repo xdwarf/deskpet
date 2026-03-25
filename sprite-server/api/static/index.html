@@ -16,8 +16,8 @@
 
     <!-- MP4 to GIF converter -->
     <section class="card" id="mp4-card">
-      <h2>Convert MP4 → GIF</h2>
-      <p class="hint">Upload one or more MP4 animations. They will be converted to 240×240 GIFs ready for the sprite publisher. Batch converts download as a ZIP.</p>
+      <h2>Convert MP4 → GIF Library</h2>
+      <p class="hint">Upload one or more MP4 animations. They will be converted to 240×240 GIFs and saved to the library below.</p>
 
       <form id="mp4-form">
         <label>
@@ -33,16 +33,19 @@
             <option value="8">8 fps</option>
           </select>
         </label>
-
         <div class="btn-row">
-          <button type="submit" id="btn-convert-mp4">Convert &amp; Download</button>
+          <button type="submit" id="btn-convert-mp4">Convert &amp; Save to Library</button>
         </div>
       </form>
-
-      <div id="mp4-progress" hidden>
-        <p id="mp4-progress-text">Converting…</p>
-      </div>
+      <div id="mp4-progress" hidden><p id="mp4-progress-text">Converting…</p></div>
       <div id="mp4-result-box" hidden></div>
+    </section>
+
+    <!-- GIF Library -->
+    <section class="card" id="gif-library-card">
+      <h2>GIF Library <button id="btn-refresh-gifs" class="small">Refresh</button></h2>
+      <p class="hint">Select a GIF, set the expression name, and publish it directly to Muni.</p>
+      <div id="gif-library"></div>
     </section>
 
     <!-- Publish form -->
@@ -63,18 +66,15 @@
           Image file
           <input type="file" id="file-input" accept="image/*" required />
         </label>
-
         <div class="preview-row">
           <img id="preview-img" alt="preview" hidden />
         </div>
-
         <div class="btn-row">
           <button type="button" id="btn-preview" disabled>Preview</button>
           <button type="button" id="btn-download" hidden>Download .sprite</button>
           <button type="submit" id="btn-publish" disabled>Publish</button>
         </div>
       </form>
-
       <div id="result-box" hidden></div>
     </section>
 
@@ -88,7 +88,10 @@
 
   <script src="/static/app.js"></script>
   <script>
-    // MP4 → GIF converter (single or batch)
+
+    // -----------------------------------------------------------------------
+    // MP4 → GIF converter — saves to library
+    // -----------------------------------------------------------------------
     document.getElementById('mp4-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const resultBox   = document.getElementById('mp4-result-box');
@@ -100,12 +103,10 @@
 
       if (!files.length) return;
 
-      btn.disabled      = true;
-      resultBox.hidden  = true;
+      btn.disabled       = true;
+      resultBox.hidden   = true;
       progressBox.hidden = false;
-
-      const isBatch = files.length > 1;
-      progressTxt.textContent = isBatch
+      progressTxt.textContent = files.length > 1
         ? `Converting ${files.length} files…`
         : 'Converting…';
 
@@ -113,61 +114,126 @@
       for (const f of files) fd.append('files', f);
       fd.append('fps', fps);
 
-      const endpoint = isBatch ? '/convert-mp4-batch' : '/convert-mp4';
-
-      // Single file uses 'file' key not 'files'
-      if (!isBatch) {
-        const fd2 = new FormData();
-        fd2.append('file', files[0]);
-        fd2.append('fps', fps);
-        try {
-          const res = await fetch('/convert-mp4', { method: 'POST', body: fd2 });
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || 'Conversion failed');
-          }
-          const blob = await res.blob();
-          const url  = URL.createObjectURL(blob);
-          const a    = document.createElement('a');
-          const disp = res.headers.get('content-disposition') || '';
-          const nm   = disp.match(/filename="?([^"]+)"?/);
-          a.download = nm ? nm[1] : 'muni.gif';
-          a.href = url;
-          a.click();
-          URL.revokeObjectURL(url);
-          resultBox.textContent = '✓ GIF downloaded — ready to publish above!';
-          resultBox.className = 'result-box success';
-        } catch (err) {
-          resultBox.textContent = '✗ ' + err.message;
-          resultBox.className = 'result-box error';
+      try {
+        const res = await fetch('/convert-mp4', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Conversion failed');
         }
-      } else {
-        try {
-          const res = await fetch('/convert-mp4-batch', { method: 'POST', body: fd });
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || 'Batch conversion failed');
-          }
-          const blob = await res.blob();
-          const url  = URL.createObjectURL(blob);
-          const a    = document.createElement('a');
-          a.download = `muni_gifs_${fps}fps.zip`;
-          a.href = url;
-          a.click();
-          URL.revokeObjectURL(url);
-          resultBox.textContent = `✓ ZIP downloaded — ${files.length} GIFs ready to publish!`;
-          resultBox.className = 'result-box success';
-        } catch (err) {
-          resultBox.textContent = '✗ ' + err.message;
-          resultBox.className = 'result-box error';
-        }
+        const data = await res.json();
+        resultBox.textContent = `✓ ${data.saved.length} GIF(s) saved to library!`;
+        resultBox.className = 'result-box success';
+        loadGifLibrary();
+      } catch (err) {
+        resultBox.textContent = '✗ ' + err.message;
+        resultBox.className = 'result-box error';
+      } finally {
+        progressBox.hidden = true;
+        resultBox.hidden   = false;
+        btn.disabled       = false;
+        btn.textContent    = 'Convert & Save to Library';
       }
-
-      progressBox.hidden = true;
-      resultBox.hidden   = false;
-      btn.disabled       = false;
-      btn.textContent    = 'Convert & Download';
     });
+
+
+    // -----------------------------------------------------------------------
+    // GIF Library
+    // -----------------------------------------------------------------------
+    async function loadGifLibrary() {
+      const container = document.getElementById('gif-library');
+      container.innerHTML = '<p class="hint">Loading…</p>';
+
+      try {
+        const res  = await fetch('/gifs');
+        const gifs = await res.json();
+
+        if (!gifs.length) {
+          container.innerHTML = '<p class="hint">No GIFs yet — convert some MP4s above.</p>';
+          return;
+        }
+
+        container.innerHTML = '';
+
+        gifs.forEach(filename => {
+          const item = document.createElement('div');
+          item.className = 'gif-item';
+          item.innerHTML = `
+            <img src="/gifs/${filename}" alt="${filename}" class="gif-thumb" />
+            <div class="gif-meta">
+              <span class="gif-name">${filename}</span>
+              <div class="gif-controls">
+                <input type="text" class="gif-expression-input" placeholder="expression name" />
+                <button class="btn-publish-gif" data-filename="${filename}">Publish</button>
+                <button class="btn-delete-gif" data-filename="${filename}">Delete</button>
+              </div>
+              <div class="gif-result" hidden></div>
+            </div>
+          `;
+          container.appendChild(item);
+        });
+
+        // Publish from library
+        container.querySelectorAll('.btn-publish-gif').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const filename   = btn.dataset.filename;
+            const input      = btn.closest('.gif-item').querySelector('.gif-expression-input');
+            const resultDiv  = btn.closest('.gif-item').querySelector('.gif-result');
+            const expression = input.value.trim().toLowerCase();
+
+            if (!expression) {
+              input.focus();
+              return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Publishing…';
+
+            const fd = new FormData();
+            fd.append('filename',   filename);
+            fd.append('character',  'muni');
+            fd.append('expression', expression);
+
+            try {
+              const res = await fetch('/publish-from-gif', { method: 'POST', body: fd });
+              if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Publish failed');
+              }
+              const data = await res.json();
+              resultDiv.textContent = `✓ Published as muni/${expression} (${data.frames} frames)`;
+              resultDiv.className = 'result-box success';
+              resultDiv.hidden = false;
+            } catch (err) {
+              resultDiv.textContent = '✗ ' + err.message;
+              resultDiv.className = 'result-box error';
+              resultDiv.hidden = false;
+            } finally {
+              btn.disabled = false;
+              btn.textContent = 'Publish';
+            }
+          });
+        });
+
+        // Delete from library
+        container.querySelectorAll('.btn-delete-gif').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const filename = btn.dataset.filename;
+            if (!confirm(`Delete ${filename}?`)) return;
+            await fetch(`/gifs/${filename}`, { method: 'DELETE' });
+            loadGifLibrary();
+          });
+        });
+
+      } catch (err) {
+        container.innerHTML = `<p class="hint">Error loading GIFs: ${err.message}</p>`;
+      }
+    }
+
+    document.getElementById('btn-refresh-gifs').addEventListener('click', loadGifLibrary);
+
+    // Load GIF library on page load
+    loadGifLibrary();
+
   </script>
 </body>
 </html>
