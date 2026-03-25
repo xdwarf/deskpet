@@ -377,7 +377,7 @@ Desktop app for Windows/macOS/Linux:
 *Huginn thinks. Muninn remembers. Muni watches your desk.*
 
 
-SPI Data speeds tests conclusion:
+SPI Data speeds tests conclusion
 
 Summary: what we tried, what worked, what didn’t, and why
 Your setup:

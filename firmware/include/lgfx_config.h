@@ -2,31 +2,23 @@
 // DeskPet — LovyanGFX display configuration
 // =============================================================================
 // Defines the LGFX class that wires together the GC9A01 panel driver and the
-// SPI bus driver for our specific hardware (ESP32-C3 SuperMini).
+// SPI bus driver for our specific hardware (ESP32-WROOM-32).
 //
-// WHY LOVYANGFX INSTEAD OF TFT_eSPI:
-//   TFT_eSPI initialises SPI via Arduino's SPIClass wrapper. On ESP32-C3,
-//   SPIClass::begin() triggers a TG1WDT_SYS_RST watchdog crash before any
-//   display commands are sent — a known incompatibility. LovyanGFX bypasses
-//   SPIClass entirely and calls spi_bus_initialize() from the ESP-IDF
-//   spi_master driver directly, which works correctly on ESP32-C3.
+// SPI BUS SELECTION (display + SD card):
+//   Display: VSPI (SPI3) for GC9A01 communication
+//   SD Card: SDMMC hardware accelerated controller (uses fixed pins 14, 15, 2)
+//   No conflict — both use separate controllers.
 //
-// SHARED SPI BUS (display + SD card):
-//   The SD card shares SPI2 with the display. Both devices use the same
-//   SCK (GPIO4) and MOSI (GPIO6) lines. MISO (GPIO3) is needed for SD reads.
-//   bus_shared=true tells LovyanGFX to properly release the bus between
-//   transactions so the SD library's SPIClass instance can take turns.
-//   use_lock=true ensures thread-safe handoff.
-//
-// WIRING (matches config.example.h):
-//   GC9A01 SCL  → GPIO4   (SPI clock  — shared with SD)
-//   GC9A01 SDA  → GPIO6   (SPI MOSI   — shared with SD)
-//   SD MISO     → GPIO3   (SPI MISO   — display doesn't use this)
-//   GC9A01 CS   → GPIO5
-//   GC9A01 DC   → GPIO7
-//   GC9A01 RES  → GPIO8
-//   SD CS       → GPIO10
-//   No BL pin   — display has backlight tied internally to 3.3V
+// WIRING (ESP32-WROOM-32, VSPI pins):
+//   GC9A01 SCL  → GPIO18  (VSPI clock)
+//   GC9A01 SDA  → GPIO23  (VSPI MOSI)
+//   GC9A01 CS   → GPIO5   (Chip Select)
+//   GC9A01 DC   → GPIO21  (Data/Command)
+//   GC9A01 RES  → GPIO22  (Reset)
+//   GC9A01 BL   → GPIO4   (Backlight)
+//   SDMMC CLK   → GPIO14  (Fixed hardware pins)
+//   SDMMC CMD   → GPIO15
+//   SDMMC D0    → GPIO2
 // =============================================================================
 
 #pragma once
@@ -48,21 +40,20 @@ public:
         {
             auto cfg = _bus.config();
 
-            // SPI2_HOST is the only user-accessible SPI peripheral on ESP32-C3.
-            // SPI0 and SPI1 are reserved for the internal flash.
-            cfg.spi_host = SPI2_HOST;
+            // SPI3_HOST (VSPI) for display — separate from SDMMC controller.
+            cfg.spi_host = SPI3_HOST;
 
             cfg.spi_mode    = 0;           // GC9A01 uses SPI mode 0
-            cfg.freq_write  = 40000000;    // 40 MHz — confirmed working via ESPHome
+            cfg.freq_write  = 40000000;    // 40 MHz as requested for stable display DMA transfer
             cfg.freq_read   = 16000000;
-            cfg.spi_3wire   = false;       // 4-wire SPI — MISO needed for SD card
-            cfg.use_lock    = true;        // Thread-safe bus access (required for shared bus)
+            cfg.spi_3wire   = false;       // 4-wire SPI
+            cfg.use_lock    = true;        // Thread-safe bus access
             cfg.dma_channel = SPI_DMA_CH_AUTO; // Let IDF pick the DMA channel
 
-            cfg.pin_sclk = 4;   // SCL — shared with SD
-            cfg.pin_mosi = 6;   // SDA — shared with SD
-            cfg.pin_miso = 3;   // MISO — SD reads; display ignores this line
-            cfg.pin_dc   = 7;   // DC / RS
+            cfg.pin_sclk = 18;  // VSPI SCK
+            cfg.pin_mosi = 23;  // VSPI MOSI
+            cfg.pin_miso = -1;  // VSPI MISO — not used for write-only display
+            cfg.pin_dc   = 21;  // DC / RS
 
             _bus.config(cfg);
             _panel.setBus(&_bus);
@@ -75,7 +66,7 @@ public:
             auto cfg = _panel.config();
 
             cfg.pin_cs   =  5;   // Chip select
-            cfg.pin_rst  =  8;   // Reset
+            cfg.pin_rst  = 22;   // Reset
             cfg.pin_busy = -1;   // Not used on GC9A01
 
             cfg.panel_width   = 240;
@@ -93,7 +84,7 @@ public:
                                           // colour inversion for correct output
             cfg.rgb_order   = false;      // BGR panel order
             cfg.dlen_16bit  = false;
-            cfg.bus_shared  = true;       // SD card also uses this SPI bus
+            cfg.bus_shared  = false;      // Display and SD card use separate controllers
 
             _panel.config(cfg);
         }

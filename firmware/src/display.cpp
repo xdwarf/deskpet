@@ -34,19 +34,10 @@ LGFX_Sprite sprite(&tft);
 
 // ---------------------------------------------------------------------------
 void displayInit() {
-    // Drive the SD card CS pin HIGH before touching the SPI bus.
-    // Until sdInit() runs, nothing has configured GPIO10 — its reset state
-    // is input/floating, which means the SD module can assert itself on the
-    // bus and corrupt the display init sequence. Pulling it HIGH here
-    // deasserts the SD CS immediately, giving the display exclusive bus access
-    // for the entirety of tft.init().
-    pinMode(PIN_SD_CS, OUTPUT);
-    digitalWrite(PIN_SD_CS, HIGH);
-
     Serial.println("[Display] Calling tft.init()...");
     Serial.flush();
 
-    // LovyanGFX initialises SPI2 via spi_bus_initialize() internally.
+    // LovyanGFX initialises SPI3 via spi_bus_initialize() internally.
     // No SPI.begin() needed — the library owns the bus entirely.
     tft.init();
 
@@ -70,6 +61,19 @@ void displayInit() {
     // so no conversion is needed when pushing pixels.
     Serial.println("[Display] Creating sprite...");
     Serial.flush();
+
+    // On boards with PSRAM, prefer PSRAM for the framebuffer to reduce DMA SRAM
+    // pressure. If PSRAM is not available, fall back to internal SRAM.
+#if defined(ESP32) || defined(ESP8266)
+    if (psramFound()) {
+        sprite.setPsram(true);
+        Serial.println("[Display] PSRAM detected — using PSRAM for sprite buffer");
+    } else {
+        sprite.setPsram(false);
+        Serial.println("[Display] No PSRAM detected — using internal SRAM for sprite buffer");
+    }
+#endif
+
     sprite.setColorDepth(16);
     sprite.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 

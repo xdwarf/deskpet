@@ -3,17 +3,21 @@
 // =============================================================================
 // DeskPet — sd_card.h
 // =============================================================================
-// SD card initialisation on the shared SPI2 bus.
+// SD card initialisation using the hardware-accelerated SDMMC controller.
 //
-// The SD card shares SCK (GPIO4) and MOSI (GPIO6) with the GC9A01 display.
-// It gets its own MISO (GPIO3) and CS (GPIO10) lines.
+// The SDMMC controller uses fixed GPIO pins:
+//   CLK: GPIO14
+//   CMD: GPIO15
+//   D0:  GPIO2
+//   CS:  GPIO13 (for 1-bit mode fallback, though not strictly needed)
+//
+// The display uses a separate VSPI (SPI3) controller on different pins,
+// so there is no bus contention or shared bus concerns. The SDMMC controller
+// provides hardware acceleration and better performance than SPI mode.
 //
 // LovyanGFX must be initialised first (tft.init() in displayInit()) before
-// sdInit() is called. LovyanGFX calls spi_bus_initialize() for SPI2_HOST;
-// once the bus is registered, the Arduino SPIClass can add the SD card as a
-// second device on the same host. bus_shared=true in lgfx_config.h tells
-// LovyanGFX to release the bus between transactions so the SD library can
-// take turns.
+// sdInit() is called, to ensure the SPI3 pin mux configuration doesn't
+// interfere with SDMMC.
 //
 // FUTURE USE: RGB565 sprite animation frames will be read from the SD card
 // and streamed directly to the display using tft.pushImage().

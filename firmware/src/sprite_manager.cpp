@@ -21,7 +21,7 @@
 #define SPRITE_DOWNLOAD_ENABLED 0
 
 #include <Arduino.h>
-#include <SD.h>
+#include <SD_MMC.h>
 #include <HTTPClient.h>
 #include <Preferences.h>    // Arduino wrapper around ESP-IDF NVS
 #include <ArduinoJson.h>
@@ -76,21 +76,23 @@ static void nvsWriteVersion(const char* version) {
 // ---------------------------------------------------------------------------
 
 // Ensure /sprites/<character>/ exists on the SD card
+static const char* SD_ROOT = "/sdcard";
+
 static void ensureDir() {
-    char dir[48];
-    snprintf(dir, sizeof(dir), "/sprites/%s", SPRITE_CHARACTER);
-    if (!SD.exists("/sprites")) {
-        SD.mkdir("/sprites");
+    char dir[64];
+    snprintf(dir, sizeof(dir), "%s/sprites/%s", SD_ROOT, SPRITE_CHARACTER);
+    if (!SD_MMC.exists(String(SD_ROOT) + "/sprites")) {
+        SD_MMC.mkdir(String(SD_ROOT) + "/sprites");
     }
-    if (!SD.exists(dir)) {
-        SD.mkdir(dir);
+    if (!SD_MMC.exists(dir)) {
+        SD_MMC.mkdir(dir);
         Serial.printf("[Sprites] Created SD directory %s\n", dir);
     }
 }
 
 // Returns true if the sprite file for a given expression exists on the SD card
 static bool spriteFileExists(const char* exprName) {
-    return SD.exists(spriteManagerPath(exprName));
+    return SD_MMC.exists(spriteManagerPath(exprName));
 }
 
 // Check whether any sprite file for the current character is on the SD card
@@ -141,7 +143,7 @@ static bool httpDownloadToFile(const char* url, const char* sdPath) {
         return false;
     }
 
-    File f = SD.open(sdPath, FILE_WRITE);
+    File f = SD_MMC.open(sdPath, FILE_WRITE);
     if (!f) {
         Serial.printf("[Sprites] Cannot open SD:%s for writing\n", sdPath);
         http.end();
@@ -303,8 +305,8 @@ bool spriteManagerHasSprites() {
 
 // ---------------------------------------------------------------------------
 const char* spriteManagerPath(const char* expressionName) {
-    snprintf(s_pathBuf, sizeof(s_pathBuf), "/sprites/%s/%s.sprite",
-             SPRITE_CHARACTER, expressionName);
+    snprintf(s_pathBuf, sizeof(s_pathBuf), "%s/sprites/%s/%s.sprite",
+             SD_ROOT, SPRITE_CHARACTER, expressionName);
     return s_pathBuf;
 }
 

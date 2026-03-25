@@ -13,11 +13,18 @@
 // player was permanently disabled — causing both the "sprite playback
 // disabled" and the silent "no sprite found" failures.
 //
-// The fix: a static 3,840-byte chunk buffer (8 rows × 240 px × 2 B) lives in
+// The fix: a static chunk buffer (64 rows × 240 px × 2 B = 30.72 KB) lives in
 // BSS at link time — zero heap involvement. spritePlayerTick() reads and
 // pushes CHUNK_ROWS at a time. Because each tft.pushImage() call ends with
 // SPI.endTransaction() (bus_shared=true in lgfx_config.h), the SD library
 // can take the SPI2 bus for the next s_file.read() without conflict.
+//
+// DUAL-CORE OPTIMIZATION (ESP32-WROOM)
+// =====================================
+// With the dual-core refactor, Core 1 is now dedicated to display tasks,
+// so we can use larger chunks (64 rows instead of 16) without blocking
+// the network stack on Core 0. This reduces SPI transactions per frame
+// from 15 (240÷16) to just 4 (240÷64), significantly improving throughput.
 //
 // LOOP vs PLAY-ONCE
 // =================
@@ -29,7 +36,7 @@
 // =============================================================================
 
 #include <Arduino.h>
-#include <SD.h>
+#include <SD_MMC.h>
 #include "sprite_player.h"
 #include "sd_card.h"
 #include "display.h"
@@ -38,14 +45,21 @@
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-static const int32_t  CHUNK_ROWS         = 16; // safe small chunk to save RAM
-static const uint32_t CHUNK_BYTES        = (uint32_t)CHUNK_ROWS * DISPLAY_WIDTH * 2; // 7,680
+// CHUNK_ROWS = 64 is now safe with dual-core ESP32-WROOM (Core 1 dedicated to display).
+// This reduces SPI transactions from 15 tpu frame to 4, improving throughput significantly.
+// Buffer size: 64 × 240 × 2 = 30.72 KB (still well below available SRAM).
+static const int32_t  CHUNK_ROWS         = 64;  // Optimized for dual-core display priority
+static const uint32_t CHUNK_BYTES        = (uint32_t)CHUNK_ROWS * DISPLAY_WIDTH * 2; // 30,720
 static const uint32_t FRAME_BYTES        = (uint32_t)DISPLAY_HEIGHT * DISPLAY_WIDTH * 2; // 115,200
-static const uint32_t FRAME_INTERVAL_MS  = 50; // 20fps target
+static const uint32_t FRAME_INTERVAL_MS  = 33; // 30fps target (16 for 60fps testing)
 
-// Static chunk buffer — 7,680 bytes in BSS; no malloc, no fragmentation.
-// Keeps memory usage reasonable so WiFi and other subsystems can initialise.
-static uint8_t s_chunkBuf[CHUNK_BYTES];
+// Double-buffer for chunked streaming: read next chunk while current chunk is DMA-pushed.
+static uint8_t s_chunkBuf[2][CHUNK_BYTES];
+static int s_activeBuf = 0; // 0 or 1
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // State
@@ -67,12 +81,12 @@ bool spritePlayerLoad(const char* path, bool loop) {
         Serial.println("[SpritePlayer] SD not available");
         return false;
     }
-    if (!SD.exists(path)) {
+    if (!SD_MMC.exists(path)) {
         Serial.printf("[SpritePlayer] Not found: %s\n", path);
         return false;
     }
 
-    s_file = SD.open(path, FILE_READ);
+    s_file = SD_MMC.open(path, FILE_READ);
     if (!s_file) {
         Serial.printf("[SpritePlayer] Failed to open: %s\n", path);
         return false;
@@ -152,21 +166,20 @@ void spritePlayerTick() {
         }
     }
 
-    // Stream the frame in CHUNK_ROWS slices to balance memory and transfer time.
-    // Each iteration transfers a smaller chunk and allows shared SPI with SD well.
-    //
-    // Each loop:
-    //   1. s_file.read().
-    //   2. tft.pushImage().
-    // The two never overlap.
+    // Stream the frame in CHUNK_ROWS slices with double buffering and DMA.
+    // Read the next chunk while the previous chunk is being pushed.
     int32_t rowY = 0;
+    int bufIndex = 0;
+    bool pendingDMA = false;
+    uint32_t lastPushStart = 0;
+
     while (rowY < (int32_t)DISPLAY_HEIGHT) {
         uint32_t remainingRows = DISPLAY_HEIGHT - rowY;
         uint32_t rowsToRead = min((uint32_t)CHUNK_ROWS, remainingRows);
         uint32_t bytesToRead = rowsToRead * DISPLAY_WIDTH * 2;
 
         uint32_t readStart = millis();
-        size_t got = s_file.read(s_chunkBuf, bytesToRead);
+        size_t got = s_file.read(s_chunkBuf[bufIndex], bytesToRead);
         totalReadTime += millis() - readStart;
 
         if (got < bytesToRead) {
@@ -176,12 +189,27 @@ void spritePlayerTick() {
             return;
         }
 
-        uint32_t pushStart = millis();
-        tft.pushImage(0, rowY, DISPLAY_WIDTH, rowsToRead,
-                      (lgfx::rgb565_t*)s_chunkBuf);
-        totalPushTime += millis() - pushStart;
+        // After read completes, wait for the previous DMA push to finish so we can
+        // safely launch the next one (and avoid rewriting the buffer in flight).
+        if (pendingDMA) {
+            tft.waitDMA();
+            totalPushTime += millis() - lastPushStart;
+            pendingDMA = false;
+        }
+
+        lastPushStart = millis();
+        tft.pushImageDMA(0, rowY, DISPLAY_WIDTH, rowsToRead,
+                         (lgfx::rgb565_t*)s_chunkBuf[bufIndex]);
+        pendingDMA = true;
 
         rowY += rowsToRead;
+        bufIndex ^= 1; // switch between 0 and 1 (double buffer)
+    }
+
+    // Wait for the final DMA push to complete before marking frame done.
+    if (pendingDMA) {
+        tft.waitDMA();
+        totalPushTime += millis() - lastPushStart;
     }
 
     s_frameIndex++;

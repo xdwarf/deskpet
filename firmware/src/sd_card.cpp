@@ -1,13 +1,14 @@
 // =============================================================================
 // DeskPet — sd_card.cpp
 // =============================================================================
-// Mounts an SD card on the shared SPI2 bus alongside the GC9A01 display.
+// Mounts an SD card using the hardware-accelerated SDMMC controller.
+// The SDMMC controller uses fixed hardware pins: CLK=14, CMD=15, D0=2, CS=13.
+// Pin remapping via setPins() is not supported on ESP32-WROOM.
 // See sd_card.h for the full design rationale.
 // =============================================================================
 
 #include <Arduino.h>
-#include <SPI.h>
-#include <SD.h>
+#include <SD_MMC.h>
 #include "sd_card.h"
 #include "config.h"
 
@@ -16,40 +17,23 @@
 // ---------------------------------------------------------------------------
 static bool s_available = false;
 
-// A dedicated SPIClass instance for the SD card.
-// Using FSPI maps to SPI2_HOST on ESP32-C3 — the same peripheral LovyanGFX
-// already initialised. The ESP32 Arduino core handles this gracefully: when
-// begin() is called on an already-registered bus it reuses the existing
-// registration rather than re-initialising it.
-static SPIClass s_sdSPI(FSPI);
-
 // ---------------------------------------------------------------------------
 bool sdInit() {
-    Serial.println("[SD] Initialising...");
+    Serial.println("[SD] Initialising via SDMMC 1-bit mode...");
 
-    // Start the SPI bus for the SD card with our pin mapping.
-    // LovyanGFX has already called spi_bus_initialize() for SPI2_HOST, so
-    // this call configures the pin mux and sets the clock divider without
-    // reinitialising the bus hardware.
-    s_sdSPI.begin(
-        PIN_TFT_SCLK,  // SCK  — GPIO4, shared with display
-        PIN_SD_MISO,   // MISO — GPIO3
-        PIN_TFT_MOSI,  // MOSI — GPIO6, shared with display
-        PIN_SD_CS      // SS   — GPIO10, SD chip select
-    );
-
-    // Attempt to mount the card.
-    // 25 MHz is the standard safe SD speed and reduces risk of SPI sharing
-    // timing issues with the display/wifi subsystems.
-    if (!SD.begin(PIN_SD_CS, s_sdSPI, 25000000)) {
+    // Use the hardware-accelerated SDMMC controller in 1-bit mode.
+    // The default hardware pins are fixed: CLK=14, CMD=15, D0=2, CS=13.
+    // The second parameter (true) enables 1-bit mode (only D0 line is used).
+    // This is much faster than SPI mode and avoids bus sharing with the display.
+    if (!SD_MMC.begin("/sdcard", true)) {
         Serial.println("[SD] Mount failed — no card, wrong wiring, or unsupported format");
-        Serial.println("[SD] Expected: FAT32 formatted, ≤32 GB");
+        Serial.println("[SD] Expected: SDMMC 1-bit mode, FAT32 formatted, ≤32 GB");
         s_available = false;
         return false;
     }
 
-    uint8_t  cardType = SD.cardType();
-    uint64_t cardSize = SD.cardSize() / (1024 * 1024); // bytes → MB
+    uint8_t  cardType = SD_MMC.cardType();
+    uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024); // bytes → MB
 
     const char* typeStr = "UNKNOWN";
     switch (cardType) {

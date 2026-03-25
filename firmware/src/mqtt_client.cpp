@@ -27,6 +27,7 @@
 #include "mqtt_client.h"
 #include "expressions.h"
 #include "config.h"
+#include "threading.h"
 
 // ---------------------------------------------------------------------------
 // Internal state
@@ -38,6 +39,10 @@ static uint32_t s_lastReconnectAttempt = 0; // millis() of last reconnect try
 
 // ---------------------------------------------------------------------------
 // MQTT message callback — called by PubSubClient on incoming message
+// ---------------------------------------------------------------------------
+// THREADING NOTE: This callback runs on Core 0 (in the context of mqttMaintain()).
+// We queue messages to Core 1 instead of directly calling expressionSet/
+// animationTrigger to avoid contending with display updates.
 // ---------------------------------------------------------------------------
 static void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     // Convert payload bytes to a null-terminated string for easy comparison.
@@ -64,8 +69,9 @@ static void onMqttMessage(char* topic, byte* payload, unsigned int length) {
             return;
         }
 
+        // Queue the expression for Core 1 to process
         // Use EXPRESSION_HOLD_MS from config.h (0 = hold until next message)
-        expressionSet(expr, EXPRESSION_HOLD_MS);
+        threadingQueueExpression((int)expr, EXPRESSION_HOLD_MS);
 
         // Confirm back to the broker what we're now showing
         mqttPublish(TOPIC_CURRENT_EXPR, msg, false);
@@ -84,7 +90,8 @@ static void onMqttMessage(char* topic, byte* payload, unsigned int length) {
             return;
         }
 
-        animationTrigger(anim);
+        // Queue the animation for Core 1 to process
+        threadingQueueAnimation((int)anim);
     }
 
     // --- deskpet/command ---
@@ -95,9 +102,9 @@ static void onMqttMessage(char* topic, byte* payload, unsigned int length) {
             ESP.restart();
         } else if (strcmp(msg, "sleep") == 0) {
             // Dim backlight and show sleepy expression
-            expressionSet(EXPR_SLEEPY);
+            threadingQueueExpression(EXPR_SLEEPY, EXPRESSION_HOLD_MS);
         } else if (strcmp(msg, "wake") == 0) {
-            expressionSet(EXPR_NEUTRAL);
+            threadingQueueExpression(EXPR_NEUTRAL, 0);
         }
     }
 }

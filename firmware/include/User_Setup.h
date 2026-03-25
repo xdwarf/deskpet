@@ -36,22 +36,16 @@
 #define TFT_WIDTH  240
 #define TFT_HEIGHT 240
 
-// --- SPI Pin definitions for ESP32-C3 ---
-// These match the wiring in the README. Change if you used different pins.
-#define TFT_MOSI  6    // SPI Data (labelled SDA on the GC9A01 board)
-#define TFT_MISO  3    // GC9A01 is write-only so MISO is unused, but MUST be a
-                       // real GPIO — NOT -1. On ESP32-C3, TFT_eSPI has a fixup
-                       // (TFT_eSPI_ESP32_C3.h:316) that silently reassigns MISO
-                       // to the same pin as MOSI when MISO == -1. The GPIO matrix
-                       // then routes both input and output to GPIO6, MOSI never
-                       // drives, every SPI transfer hangs, and the watchdog fires.
-                       // GPIO2 is free (BL is disabled) and safe to use as a dummy.
-#define TFT_SCLK  4    // SPI Clock (labelled SCL)
+// --- SPI Pin definitions for ESP32-WROOM-32 (VSPI) ---
+// Using VSPI (SPI3) to avoid conflict with SDMMC hardware accelerated controller.
+// These match the configuration for the GC9A01 board. Change if you used different pins.
+#define TFT_MOSI  23   // SPI Data (VSPI MOSI)
+#define TFT_MISO  -1   // GC9A01 is write-only so MISO is unused
+#define TFT_SCLK  18   // SPI Clock (VSPI SCK)
 #define TFT_CS    5    // Chip Select (active LOW)
-#define TFT_DC    7    // Data/Command select
-#define TFT_RST   8    // Reset (active LOW)
-// #define TFT_BL    2    // Backlight — uncomment if your display has a BL pin wired to GPIO2
-                           // Leave commented if the display has no BL pin (backlight always on)
+#define TFT_DC    21   // Data/Command select
+#define TFT_RST   22   // Reset (active LOW)
+#define TFT_BL    4    // Backlight (PWM capable pin)
 
 // --- SPI frequency ---
 // Start conservatively at 10 MHz to rule out signal integrity issues.
