@@ -41,6 +41,87 @@
       <div id="mp4-result-box" hidden></div>
     </section>
 
+<!-- Add this new section AFTER the mp4-card section in index.html -->
+
+<section class="card" id="webp-card">
+  <h2>Convert MP4 → Transparent WebP</h2>
+  <p class="hint">Upload an MP4 with a white background. Downloads a transparent animated WebP ready for the website.</p>
+
+  <form id="webp-form">
+    <label>
+      MP4 File
+      <input type="file" id="webp-input" accept="video/mp4" required />
+    </label>
+    <label>
+      Frame Rate
+      <select id="webp-fps">
+        <option value="24">24 fps</option>
+        <option value="18">18 fps</option>
+        <option value="12" selected>12 fps (recommended)</option>
+        <option value="8">8 fps</option>
+      </select>
+    </label>
+    <label>
+      White threshold (240 = pure white only, lower = remove near-whites too)
+      <input type="number" id="webp-threshold" value="240" min="180" max="255" />
+    </label>
+    <div class="btn-row">
+      <button type="submit" id="btn-convert-webp">Convert &amp; Download WebP</button>
+    </div>
+  </form>
+  <div id="webp-progress" hidden><p>Converting — this may take a moment…</p></div>
+  <div id="webp-result-box" hidden></div>
+</section>
+
+<script>
+  document.getElementById('webp-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn       = document.getElementById('btn-convert-webp');
+    const progress  = document.getElementById('webp-progress');
+    const resultBox = document.getElementById('webp-result-box');
+    const file      = document.getElementById('webp-input').files[0];
+    const fps       = document.getElementById('webp-fps').value;
+    const threshold = document.getElementById('webp-threshold').value;
+
+    if (!file) return;
+
+    btn.disabled      = true;
+    progress.hidden   = false;
+    resultBox.hidden  = true;
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('fps', fps);
+    fd.append('threshold', threshold);
+
+    try {
+      const res = await fetch('/convert-mp4-webp', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Conversion failed');
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'muni_transparent.webp';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      resultBox.textContent = '✓ Done! Your transparent WebP is downloading.';
+      resultBox.className   = 'result-box success';
+    } catch (err) {
+      resultBox.textContent = '✗ ' + err.message;
+      resultBox.className   = 'result-box error';
+    } finally {
+      progress.hidden  = false;
+      resultBox.hidden = false;
+      btn.disabled     = false;
+      progress.hidden  = true;
+    }
+  });
+  </script>
+
     <!-- GIF Library -->
     <section class="card" id="gif-library-card">
       <h2>GIF Library <button id="btn-refresh-gifs" class="small">Refresh</button></h2>

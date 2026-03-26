@@ -186,6 +186,85 @@ def _mp4_to_gif(data: bytes, filename: str, fps: int) -> bytes:
 
         return gif_path.read_bytes()
 
+# ---------------------------------------------------------------------------
+# Convert MP4 → transparent animated WebP (white background removed)
+# Add this route anywhere after the _mp4_to_gif helper
+# ---------------------------------------------------------------------------
+
+@app.post("/convert-mp4-webp")
+async def convert_mp4_webp(
+    file: UploadFile = File(...),
+    fps: int = Form(12),
+    threshold: int = Form(240),
+):
+    """
+    Convert a single MP4 to a transparent animated WebP.
+    White (and near-white) pixels are replaced with transparency.
+    threshold: 0-255, pixels where R,G,B are all >= this value become transparent.
+    """
+    if not file.filename.lower().endswith(".mp4"):
+        raise HTTPException(status_code=422, detail="File must be an MP4")
+    if fps not in (8, 12, 18, 24):
+        raise HTTPException(status_code=422, detail="fps must be 8, 12, 18, or 24")
+
+    data = await file.read()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        mp4_path    = tmp / "input.mp4"
+        frames_dir  = tmp / "frames"
+        webp_path   = tmp / "output.webp"
+
+        mp4_path.write_bytes(data)
+        frames_dir.mkdir()
+
+        # Extract frames as PNGs via ffmpeg
+        extract_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(mp4_path),
+            "-vf", f"fps={fps},scale=240:240:flags=lanczos",
+            str(frames_dir / "frame%04d.png")
+        ]
+        result = subprocess.run(extract_cmd, capture_output=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="Frame extraction failed: " + result.stderr.decode())
+
+        frame_paths = sorted(frames_dir.glob("frame*.png"))
+        if not frame_paths:
+            raise HTTPException(status_code=500, detail="No frames extracted from MP4")
+
+        # Strip white background from each frame
+        from PIL import Image
+        frames = []
+        for fp in frame_paths:
+            img = Image.open(fp).convert("RGBA")
+            pixels = img.load()
+            for y in range(img.height):
+                for x in range(img.width):
+                    r, g, b, a = pixels[x, y]
+                    if r >= threshold and g >= threshold and b >= threshold:
+                        pixels[x, y] = (r, g, b, 0)
+            frames.append(img)
+
+        # Save as animated WebP
+        frames[0].save(
+            str(webp_path),
+            format="WEBP",
+            save_all=True,
+            append_images=frames[1:],
+            duration=int(1000 / fps),
+            loop=0,
+            lossless=False,
+            quality=90,
+        )
+
+        webp_bytes = webp_path.read_bytes()
+
+    return StreamingResponse(
+        io.BytesIO(webp_bytes),
+        media_type="image/webp",
+        headers={"Content-Disposition": f"attachment; filename=muni_transparent.webp"}
+    )
 
 # ---------------------------------------------------------------------------
 # Convert MP4(s) → save to GIF library
