@@ -1,0 +1,9 @@
+services:
+  emulator:
+    image: nginx:alpine
+    container_name: muni-emulator
+    restart: unless-stopped
+    ports:
+      - "3600:80"
+    volumes:
+      - ./dist:/usr/share/nginx/html/emulator:ro
