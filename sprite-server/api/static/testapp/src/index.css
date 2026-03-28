@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 232 33% 14%;
+    --foreground: 36 33% 94%;
+    --card: 232 33% 17%;
+    --card-foreground: 36 33% 94%;
+    --popover: 232 33% 15%;
+    --popover-foreground: 36 33% 94%;
+    --primary: 43 52% 54%;
+    --primary-foreground: 232 33% 10%;
+    --secondary: 232 25% 22%;
+    --secondary-foreground: 36 33% 94%;
+    --muted: 232 25% 20%;
+    --muted-foreground: 36 15% 60%;
+    --accent: 232 25% 25%;
+    --accent-foreground: 43 52% 54%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 36 33% 94%;
+    --border: 232 20% 25%;
+    --input: 232 20% 25%;
+    --ring: 43 52% 54%;
+    --chart-1: 43 52% 54%;
+    --chart-2: 210 60% 50%;
+    --chart-3: 150 50% 45%;
+    --chart-4: 280 50% 55%;
+    --chart-5: 20 70% 55%;
+    --radius: 0.5rem;
+    --sidebar-background: 232 33% 12%;
+    --sidebar-foreground: 36 33% 94%;
+    --sidebar-primary: 43 52% 54%;
+    --sidebar-primary-foreground: 232 33% 10%;
+    --sidebar-accent: 232 25% 20%;
+    --sidebar-accent-foreground: 36 33% 94%;
+    --sidebar-border: 232 20% 25%;
+    --sidebar-ring: 43 52% 54%;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  .dark {
+    --background: 232 33% 10%;
+    --foreground: 36 33% 94%;
+    --card: 232 33% 13%;
+    --card-foreground: 36 33% 94%;
+    --popover: 232 33% 11%;
+    --popover-foreground: 36 33% 94%;
+    --primary: 43 52% 54%;
+    --primary-foreground: 232 33% 10%;
+    --secondary: 232 25% 18%;
+    --secondary-foreground: 36 33% 94%;
+    --muted: 232 25% 16%;
+    --muted-foreground: 36 15% 55%;
+    --accent: 232 25% 20%;
+    --accent-foreground: 43 52% 54%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 36 33% 94%;
+    --border: 232 20% 20%;
+    --input: 232 20% 20%;
+    --ring: 43 52% 54%;
+    --chart-1: 43 52% 54%;
+    --chart-2: 210 60% 45%;
+    --chart-3: 150 50% 40%;
+    --chart-4: 280 50% 50%;
+    --chart-5: 20 70% 50%;
+    --sidebar-background: 232 33% 8%;
+    --sidebar-foreground: 36 33% 94%;
+    --sidebar-primary: 43 52% 54%;
+    --sidebar-primary-foreground: 232 33% 8%;
+    --sidebar-accent: 232 25% 15%;
+    --sidebar-accent-foreground: 36 33% 94%;
+    --sidebar-border: 232 20% 15%;
+    --sidebar-ring: 43 52% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Pulsing LED glow animation for the round display */
+@keyframes ledPulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 15px 4px rgba(26, 26, 46, 0.8),
+      0 0 30px 8px rgba(26, 26, 46, 0.4),
+      0 0 45px 12px rgba(26, 26, 46, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px 6px rgba(50, 50, 120, 0.9),
+      0 0 40px 12px rgba(50, 50, 120, 0.5),
+      0 0 60px 18px rgba(50, 50, 120, 0.3);
+  }
+}
+
+.led-pulse {
+  animation: ledPulse 3s ease-in-out infinite;
+}
+
+/* Scrollbar styling for the expression list */
+.expression-list::-webkit-scrollbar {
+  width: 6px;
+}
+.expression-list::-webkit-scrollbar-track {
+  background: hsl(232 33% 14%);
+}
+.expression-list::-webkit-scrollbar-thumb {
+  background: hsl(232 20% 30%);
+  border-radius: 3px;
+}
+.expression-list::-webkit-scrollbar-thumb:hover {
+  background: hsl(43 52% 54%);
+}
