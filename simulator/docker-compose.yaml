@@ -6,4 +6,4 @@ services:
     ports:
       - "3600:80"
     volumes:
-      - ./:/usr/share/nginx/html/emulator:ro
+      - ./:/usr/share/nginx/html:ro
