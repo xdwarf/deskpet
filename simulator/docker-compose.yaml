@@ -1,7 +1,7 @@
 services:
   emulator:
     image: nginx:alpine
-    container_name: muni-emulator
+    container_name: muni-simulator
     restart: unless-stopped
     ports:
       - "3600:80"
