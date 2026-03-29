@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ᛗᚢᚾᛁ — Muni Emulator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --midnight:   #0d0d1a;
+      --deep:       #1a1a2e;
+      --panel:      #151525;
+      --border:     #2a2a45;
+      --gold:       #c9a84c;
+      --gold-dim:   #7a6530;
+      --gold-glow:  rgba(201,168,76,0.15);
+      --warm-white: #f0e8d8;
+      --muted:      #6a6880;
+      --blue-led:   #1a6aff;
+      --blue-glow:  rgba(26,106,255,0.5);
+      --green:      #4caf7d;
+      --red:        #c94c4c;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--midnight);
+      color: var(--warm-white);
+      font-family: 'Crimson Text', Georgia, serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Subtle noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* TOP BAR */
+    .topbar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 52px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-title {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.12em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar-title .rune {
+      font-size: 20px;
+      opacity: 0.8;
+    }
+
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'Crimson Text', serif;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: background 0.4s;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.connecting { background: var(--gold); animation: pulse-dot 1s infinite; }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .btn-refresh {
+      background: none;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      padding: 5px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-refresh:hover {
+      background: var(--gold-glow);
+      border-color: var(--gold);
+    }
+
+    /* MAIN LAYOUT */
+    .main {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* LEFT PANEL */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 20px 20px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-header p {
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .expression-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .expression-list::-webkit-scrollbar { width: 4px; }
+    .expression-list::-webkit-scrollbar-track { background: transparent; }
+    .expression-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .expression-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    .expression-item:hover {
+      background: rgba(201,168,76,0.06);
+      color: var(--warm-white);
+      border-left-color: var(--gold-dim);
+    }
+
+    .expression-item.active {
+      background: rgba(201,168,76,0.1);
+      color: var(--gold);
+      border-left-color: var(--gold);
+      font-weight: 600;
+    }
+
+    .expression-item .expr-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+
+    .expression-empty {
+      padding: 24px 20px;
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* CENTRE STAGE */
+    .stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 40px;
+      background: radial-gradient(ellipse at center, #12122a 0%, var(--midnight) 70%);
+    }
+
+    .display-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* The round display bezel */
+    .display-bezel {
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: #080810;
+      border: 3px solid #222235;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow:
+        0 0 0 1px #111125,
+        0 8px 40px rgba(0,0,0,0.8),
+        inset 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    /* LED glow ring — animated blue breathing */
+    .led-glow {
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+      animation: led-breathe 3s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes led-breathe {
+      0%, 100% {
+        box-shadow:
+          0 0 15px 4px rgba(26,106,255,0.3),
+          0 0 40px 8px rgba(26,106,255,0.15),
+          0 0 80px 16px rgba(26,106,255,0.05);
+      }
+      50% {
+        box-shadow:
+          0 0 25px 8px rgba(26,106,255,0.6),
+          0 0 60px 16px rgba(26,106,255,0.3),
+          0 0 120px 30px rgba(26,106,255,0.1);
+      }
+    }
+
+    /* The actual canvas display */
+    canvas#display {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      image-rendering: pixelated;
+    }
+
+    /* Placeholder shown when no sprite loaded */
+    .display-placeholder {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: radial-gradient(ellipse at center, #0d0d25 0%, #08080f 100%);
+    }
+
+    .display-placeholder .rune-large {
+      font-family: 'Cinzel', serif;
+      font-size: 48px;
+      color: var(--gold);
+      opacity: 0.4;
+      text-shadow: 0 0 20px var(--gold);
+      animation: rune-pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes rune-pulse {
+      0%, 100% { opacity: 0.3; text-shadow: 0 0 20px var(--gold); }
+      50% { opacity: 0.6; text-shadow: 0 0 40px var(--gold), 0 0 80px rgba(201,168,76,0.3); }
+    }
+
+    .display-placeholder p {
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+      letter-spacing: 0.05em;
+    }
+
+    /* Info strip below display */
+    .display-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'Crimson Text', serif;
+    }
+
+    .display-info span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .display-info .val {
+      color: var(--warm-white);
+      font-weight: 600;
+    }
+
+    .display-info .playing {
+      color: var(--green);
+    }
+
+    /* Decorative rune corners */
+    .rune-corner {
+      position: absolute;
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      color: var(--gold);
+      opacity: 0.08;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .rune-corner.tl { top: 20px; left: 20px; }
+    .rune-corner.tr { top: 20px; right: 20px; }
+    .rune-corner.bl { bottom: 20px; left: 20px; }
+    .rune-corner.br { bottom: 20px; right: 20px; }
+
+    /* Loading overlay on canvas */
+    .loading-ring {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    .loading-ring.visible { display: block; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Expression icon mapping */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-title">
+      <span class="rune">ᛗᚢᚾᛁ</span>
+      MUNI EMULATOR
+    </div>
+    <div class="topbar-status">
+      <div class="status-item">
+        <div class="status-dot" id="dot-http"></div>
+        <span>Sprite Server</span>
+      </div>
+      <div class="status-item">
+        <div class="status-dot" id="dot-ws"></div>
+        <span>Live Preview</span>
+      </div>
+      <button class="btn-refresh" onclick="init()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>Muni</h2>
+        <p>Select an expression</p>
+      </div>
+      <div class="expression-list" id="expression-list">
+        <div class="expression-empty" id="expr-empty">
+          Fetching manifest…
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE -->
+    <div class="stage">
+      <span class="rune-corner tl">ᚠ</span>
+      <span class="rune-corner tr">ᚱ</span>
+      <span class="rune-corner bl">ᚦ</span>
+      <span class="rune-corner br">ᚷ</span>
+
+      <div class="display-wrapper">
+        <div class="led-glow"></div>
+        <div class="display-bezel">
+          <!-- Placeholder -->
+          <div class="display-placeholder" id="placeholder">
+            <span class="rune-large">ᛗ</span>
+            <p>No sprite loaded</p>
+          </div>
+          <!-- Canvas (hidden until sprite loads) -->
+          <canvas id="display" width="240" height="240" class="hidden"></canvas>
+          <!-- Loading spinner -->
+          <div class="loading-ring" id="loading-ring"></div>
+        </div>
+      </div>
+
+      <div class="display-info">
+        <span>Expression: <span class="val" id="info-expr">—</span></span>
+        <span>Frames: <span class="val" id="info-frames">—</span></span>
+        <span>FPS: <span class="val" id="info-fps">—</span></span>
+        <span id="info-playing" class="playing hidden">▶ Playing</span>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────────────────────
+  const MANIFEST_URL = 'http://sprites.mael.dk/manifest.json';
+  const SPRITE_BASE  = 'http://sprites.mael.dk/muni/';
+  const WS_URL       = 'ws://192.168.2.14:8765';
+  const FPS          = 10;
+  const FRAME_BYTES  = 240 * 240 * 2; // 115,200
+
+  const EXPR_ICONS = {
+    neutral: '😐', happy: '😄', sad: '😢', excited: '🎉',
+    surprised: '😮', sleepy: '😴', thinking: '🤔', annoyed: '😒',
+    twitch_follow: '💜', twitch_sub: '⭐', twitch_raid: '⚔️',
+    twitch_bits: '💎', twitch_live: '🔴', discord_mention: '💬',
+    discord_voice_join: '🎙️', discord_message: '✉️',
+  };
+
+  // ─── STATE ────────────────────────────────────────────────────────────────
+  let expressions    = [];
+  let activeExpr     = null;
+  let frames         = [];
+  let currentFrame   = 0;
+  let playInterval   = null;
+  let ws             = null;
+  let wsReconnectTimer = null;
+
+  // ─── DOM REFS ─────────────────────────────────────────────────────────────
+  const canvas      = document.getElementById('display');
+  const ctx         = canvas.getContext('2d');
+  const placeholder = document.getElementById('placeholder');
+  const loadingRing = document.getElementById('loading-ring');
+  const exprList    = document.getElementById('expression-list');
+  const exprEmpty   = document.getElementById('expr-empty');
+  const dotHttp     = document.getElementById('dot-http');
+  const dotWs       = document.getElementById('dot-ws');
+  const infoExpr    = document.getElementById('info-expr');
+  const infoFrames  = document.getElementById('info-frames');
+  const infoFps     = document.getElementById('info-fps');
+  const infoPlaying = document.getElementById('info-playing');
+
+  // ─── MANIFEST ─────────────────────────────────────────────────────────────
+  async function fetchManifest() {
+    dotHttp.className = 'status-dot connecting';
+    try {
+      const res = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const manifest = await res.json();
+      dotHttp.className = 'status-dot connected';
+      return manifest;
+    } catch (e) {
+      dotHttp.className = 'status-dot';
+      console.warn('Manifest fetch failed:', e);
+      return null;
+    }
+  }
+
+  function renderExpressionList() {
+    // Remove old items (keep empty msg)
+    exprList.querySelectorAll('.expression-item').forEach(el => el.remove());
+
+    if (expressions.length === 0) {
+      exprEmpty.textContent = 'No expressions found on server.';
+      exprEmpty.style.display = '';
+      return;
+    }
+
+    exprEmpty.style.display = 'none';
+
+    expressions.forEach(expr => {
+      const icon = EXPR_ICONS[expr] || '🐦';
+      const item = document.createElement('div');
+      item.className = 'expression-item' + (expr === activeExpr ? ' active' : '');
+      item.dataset.expr = expr;
+      item.innerHTML = `<span class="expr-icon">${icon}</span>${expr}`;
+      item.addEventListener('click', () => loadExpression(expr));
+      exprList.appendChild(item);
+    });
+  }
+
+  // ─── SPRITE LOADING ───────────────────────────────────────────────────────
+  async function loadExpression(expr) {
+    if (expr === activeExpr) return;
+    activeExpr = expr;
+
+    stopPlayback();
+    showLoading(true);
+    renderExpressionList();
+
+    infoExpr.textContent = expr;
+    infoFrames.textContent = '…';
+    infoFps.textContent = FPS;
+
+    try {
+      const url = `${SPRITE_BASE}${expr}.sprite`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buffer = await res.arrayBuffer();
+
+      frames = parseSprite(buffer);
+      infoFrames.textContent = frames.length;
+
+      showLoading(false);
+      showCanvas(true);
+      startPlayback();
+
+    } catch (e) {
+      console.error('Failed to load sprite:', e);
+      showLoading(false);
+      showCanvas(false);
+      infoExpr.textContent = `${expr} (failed)`;
+      infoFrames.textContent = '—';
+    }
+  }
+
+  function parseSprite(buffer) {
+    const total = Math.floor(buffer.byteLength / FRAME_BYTES);
+    const result = [];
+    const view = new DataView(buffer);
+
+    for (let f = 0; f < total; f++) {
+      const offset = f * FRAME_BYTES;
+      const imageData = ctx.createImageData(240, 240);
+      const pixels = imageData.data;
+
+      for (let i = 0; i < 240 * 240; i++) {
+        const raw = view.getUint16(offset + i * 2, true); // little-endian
+        pixels[i * 4 + 0] = ((raw >> 11) & 0x1F) << 3; // R
+        pixels[i * 4 + 1] = ((raw >> 5)  & 0x3F) << 2; // G
+        pixels[i * 4 + 2] = ( raw        & 0x1F) << 3; // B
+        pixels[i * 4 + 3] = 255;                        // A
+      }
+      result.push(imageData);
+    }
+    return result;
+  }
+
+  // ─── PLAYBACK ─────────────────────────────────────────────────────────────
+  function startPlayback() {
+    if (frames.length === 0) return;
+    currentFrame = 0;
+    drawFrame(currentFrame);
+    infoPlaying.classList.remove('hidden');
+    playInterval = setInterval(() => {
+      currentFrame = (currentFrame + 1) % frames.length;
+      drawFrame(currentFrame);
+    }, 1000 / FPS);
+  }
+
+  function stopPlayback() {
+    if (playInterval) { clearInterval(playInterval); playInterval = null; }
+    infoPlaying.classList.add('hidden');
+    frames = [];
+    currentFrame = 0;
+  }
+
+  function drawFrame(index) {
+    ctx.putImageData(frames[index], 0, 0);
+  }
+
+  // ─── UI HELPERS ───────────────────────────────────────────────────────────
+  function showLoading(visible) {
+    loadingRing.className = visible ? 'loading-ring visible' : 'loading-ring';
+  }
+
+  function showCanvas(visible) {
+    if (visible) {
+      canvas.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    } else {
+      canvas.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+    }
+  }
+
+  // ─── WEBSOCKET ────────────────────────────────────────────────────────────
+  function connectWS() {
+    dotWs.className = 'status-dot connecting';
+    try {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        dotWs.className = 'status-dot connected';
+        console.log('WS connected');
+        if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const expr = data.expression || data.expr || data;
+          if (typeof expr === 'string' && expressions.includes(expr)) {
+            loadExpression(expr);
+          }
+        } catch (e) {
+          // Plain string message
+          const expr = event.data.trim();
+          if (expressions.includes(expr)) loadExpression(expr);
+        }
+      };
+
+      ws.onclose = () => {
+        dotWs.className = 'status-dot';
+        console.log('WS disconnected — retrying in 5s');
+        wsReconnectTimer = setTimeout(connectWS, 5000);
+      };
+
+      ws.onerror = () => {
+        dotWs.className = 'status-dot';
+        ws.close();
+      };
+
+    } catch (e) {
+      dotWs.className = 'status-dot';
+      wsReconnectTimer = setTimeout(connectWS, 5000);
+    }
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────────────────────
+  async function init() {
+    stopPlayback();
+    showCanvas(false);
+    infoExpr.textContent = '—';
+    infoFrames.textContent = '—';
+    infoFps.textContent = '—';
+    activeExpr = null;
+
+    const manifest = await fetchManifest();
+    if (manifest && manifest.expressions) {
+      expressions = manifest.expressions;
+    } else {
+      expressions = [];
+    }
+    renderExpressionList();
+  }
+
+  // Boot
+  init();
+  connectWS();
+</script>
+</body>
+</html>
